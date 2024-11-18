@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ki Pas!</title>
+    <link href="https://fonts.googleapis.com/css2?family=Oswald:wght@400;500&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="styles.css"> <!-- Link to the external CSS file -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
+</head>
+<body>
+    <header>
+        <div class="logo">Ki Pas!</div>
+        <nav>
+            <button class="nav-button">Home</button>
+            <button class="nav-button">Explore</button>
+            <button class="nav-button">My Sessions</button>
+        </nav>
+        <button class="sign-in-button">Sign In</button> <!-- Moved here -->
+        <div class="hamburger-icon" aria-expanded="false">
+            <div class="line"></div>
+            <div class="line"></div>
+            <div class="line"></div>
+        </div>
+    </header>
+    <main>
+        <div class="map-container">
+            <div id="map"></div> <!-- Leaflet Map will be rendered here -->
+        </div>
+    </main>
+    <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+    <script>
+        // Initialize the map
+        const map = L.map('map').setView([20, 0], 2); // Center of the world
+
+        // Using a different tile layer
+        L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
+            maxZoom: 19,
+            attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>',
+        }).addTo(map);
+
+        // Custom icon (replace 'path/to/your/icon.png' with your actual icon path)
+        const myIcon = L.icon({
+            iconUrl: 'https://example.com/path/to/your/icon.png', // Replace with your icon URL
+            iconSize: [25, 41],
+            iconAnchor: [12, 41],
+            popupAnchor: [1, -34],
+        });
+
+    </script>
+</body>
+</html>
