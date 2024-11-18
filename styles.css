@@ -1,6 +1,6 @@
 body {
   margin: 0;
-  font-family: 'Oswald', sans-serif; /* Use Oswald font */
+  font-family: 'Asap Condensed', sans-serif; /* Use Asap+Condensed font */
   background-color: white;
 }
 
@@ -15,14 +15,14 @@ header {
 .logo {
   background-color: #0d786b;
   color: white;
-  padding: 55px 45px;
-  border-radius: 0;
+  padding: 60px 35px;
+  border-radius: 1px;
   font-weight: 350;
   margin-right: 0px;
   margin-left: 45px;
   cursor: pointer;
   font-size: 24px;
-  font-family: 'Oswald', sans-serif; /* Use Oswald font */
+  font-family: 'Montserrat', sans-serif; /* Use Montserrat font  */
 }
 
 nav {
@@ -31,13 +31,13 @@ nav {
 }
 
 .nav-button {
-  font-family: 'Oswald', sans-serif; /* Use Oswald font */
+  font-family: 'Asap Condensed', sans-serif; /* Use Asap Condensed font */
   background: none;
   border: none;
   color: #000000;
-  padding: 10px 10px;
+  padding: 10px 20px;
   font-weight: 450;
-  font-size: 18px;
+  font-size: 21px;
   text-indent: 2cm;
   cursor: pointer;
   transition: color 0.3s;
@@ -48,7 +48,7 @@ nav {
 }
 
 .sign-in-button {
-  font-family: 'Oswald', sans-serif; /* Use Oswald font */
+  font-family: 'Asap Condensed', sans-serif; /* Use Asap Condensed font */
   background-color: #0d786b;
   color: white;
   border: none;
@@ -56,7 +56,7 @@ nav {
   border-radius: 1px;
   font-weight: 350;
   font-size: 18px;
-  margin-right: 0px;
+  margin-left: 0px;
   cursor: pointer;
   transition: background-color 0.3s;
 }
@@ -68,17 +68,17 @@ nav {
 .hamburger-icon {
   display: flex;
   flex-direction: column;
-  justify-content: center;
+  justify-content: left;
   cursor: pointer;
-  padding: 20px;
+  padding: 50px;
 }
 
 .line {
-  width: 25px;
-  height: 3px;
+  width: 35px;
+  height: 4px;
   background-color: #0d786b;
   margin: 3px; 
-  border-radius: 1px; /* Rounded corners */
+  border-radius: 3px; /* Rounded corners */
 }
 
 .map-container {
@@ -93,5 +93,5 @@ nav {
   width: 100%; /* Full width */
   border: 0px solid #0d786b; /* Custom border */
   border-radius: 5px; /* Rounded corners */
-  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2); /* Shadow effect */
+  
 }
