@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Login / Sign Up - Ki Pas!</title>
+    <link href="https://fonts.googleapis.com/css2?family=Oswald:wght@400;500&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="styles.css"> <!-- Link to the external CSS file -->
+</head>
+<body>
+    <header>
+        <div class="logo">Ki Pas!</div>
+        <nav>
+            <button class="nav-button">Home</button>
+            <button class="nav-button">Explore</button>
+            <button class="nav-button">My Sessions</button>
+        </nav>
+        <button class="sign-in-button">Sign In</button> <!-- Moved here -->
+        <div class="hamburger-icon" aria-expanded="false">
+            <div class="line"></div>
+            <div class="line"></div>
+            <div class="line"></div>
+        </div>
+    </header>
+    <main>
+        <div class="form-container">
+            <div class="form-section">
+                <h2>Login</h2>
+                <form id="login-form">
+                    <label for="login-email">Email:</label>
+                    <input type="email" id="login-email" name="login-email" required>
+                    <label for="login-password">Password:</label>
+                    <input type="password" id="login-password" name="login-password" required>
+                    <button type="submit" class="sign-in-button">Login</button>
+                </form>
+            </div>
+            <div class="form-section">
+                <h2>Sign Up</h2>
+                <form id="signup-form">
+                    <label for="signup-email">Email:</label>
+                    <input type="email" id="signup-email" name="signup-email" required>
+                    <label for="signup-password">Password:</label>
+                    <input type="password" id="signup-password" name="signup-password" required>
+                    <label for="signup-confirm-password">Confirm Password:</label>
+                    <input type="password" id="signup-confirm-password" name="signup-confirm-password" required>
+                    <button type="submit" class="sign-in-button">Sign Up</button>
+                </form>
+            </div>
+        </div>
+    </main>
+    <style>
+        .form-container {
+            display: flex;
+            justify-content: space-around;
+            align-items: flex-start;
+            padding: 20px;
+            margin: 0 auto;
+            width: 80%;
+        }
+
+        .form-section {
+            background-color: #f9f9f9; /* Light background for forms */
+            padding: 20px;
+            border-radius: 5px;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+            width: 40%; /* Adjust width for form sections */
+        }
+
+        h2 {
+            font-size: 24px;
+            margin-bottom: 15px;
+        }
+
+        label {
+            font-weight: 500;
+            margin-top: 10px;
+            display: block;
+        }
+
+        input {
+            width: 100%;
+            padding: 10px;
+            margin-top: 5px;
+            margin-bottom: 15px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+        }
+    </style>
+</body>
+</html>
