@@ -55,8 +55,8 @@ nav {
   padding: 10px 30px;
   border-radius: 1px;
   font-weight: 350;
-  font-size: 18px;
-  margin-left: 0px;
+  font-size: 21px;
+  margin-right: 100px;
   cursor: pointer;
   transition: background-color 0.3s;
 }
@@ -82,16 +82,195 @@ nav {
 }
 
 .map-container {
-  height: 75vh; /* Full height of the viewport */
-  width: 75%; /* Full width */
+  height: 77vh; /* Full height of the viewport */
+  width: 100%; /* Full width */
   margin: 0 auto; /* Center horizontally */
-  padding: 20px;
+  padding: 5px;
 }
 
 #map {
   height: 100%; /* Full height of the container */
-  width: 100%; /* Full width */
+  width: 95%; /* Full width */
+  margin: 0 auto;
   border: 0px solid #0d786b; /* Custom border */
   border-radius: 5px; /* Rounded corners */
-  
 }
+
+.form-container {
+  display: flex;
+  justify-content: space-around;
+  align-items: flex-start;
+  padding: 20px;
+  margin: 0 auto;
+  width: 80%;
+}
+
+.form-section {
+  background-color: #f9f9f9; /* Light background for forms */
+  padding: 20px;
+  border-radius: 5px;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+  width: 40%; /* Adjust width for form sections */
+}
+
+h2 {
+  font-size: 24px;
+  margin-bottom: 15px;
+}
+
+label {
+  font-weight: 500;
+  margin-top: 10px;
+  display: block;
+}
+
+input {
+  width: 98%;
+  padding: 10px;
+  margin-top: 5px;
+  margin-bottom: 15px;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+}
+
+.session-container {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 20px;
+  padding: 20px;
+}
+
+.session-card {
+  background-color: white;
+  border: 0px solid #0d786b; /* Border color */
+  border-radius: 2px; /* Rounded corners */
+  width: 300px; /* Fixed width for cards */
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+  overflow: hidden; /* Prevents overflow */
+}
+
+.session-image {
+  width: 100%; /* Full width */
+  height: 200px; /* Fixed height */
+  object-fit: cover; /* Cover the area */
+  border-radius: 5px;
+}
+
+.session-details {
+  padding: 15px; /* Spacing inside the card */
+}
+
+.session-title {
+  font-family: 'Montserrat', sans-serif; /* Use Montserrat font for titles */
+  font-size: 18 px; /* Title font size */
+  margin: 0 0 10px; /* Margin below title */
+}
+
+.session-location,
+.session-time,
+.session-description,
+.session-capacity,
+.session-tags,
+.session-host {
+  font-family: 'Asap Condensed', sans-serif; /* Use Asap Condensed font */
+  font-size: 14px; /* Font size for details */
+  margin: 5px 0; /* Margin for spacing */
+}
+
+.pagination {
+  display: flex;
+  justify-content: center; /* Center pagination buttons */
+  margin: 20px 0; /* Margin above and below pagination */
+}
+
+.pagination-button {
+  background-color: #0d786b; /* Button background color */
+  color: white; /* Button text color */
+  font-family: Verdana, Geneva, Tahoma, sans-serif;
+  border: none; /* No border */
+  padding: 10px 15px; /* Padding for buttons */
+  border-radius: 1px; /* Rounded corners */
+  margin: 0 5px; /* Margin between buttons */
+  cursor: pointer; /* Pointer cursor on hover */
+  transition: background-color 0.3s; /* Transition for hover effect */
+}
+
+.pagination-button:hover {
+  background-color: #005f5f; /* Darker shade on hover */
+}
+
+
+.session-details {
+  padding: 15px; /* Spacing inside the card */
+}
+
+.session-title {
+  font-family: 'Montserrat', sans-serif; /* Use Montserrat font for titles */
+  font-size: 18px; /* Title font size */
+  margin: 0 0 10px; /* Margin below title */
+}
+
+.session-location,
+.session-time,
+.session-description,
+.session-capacity,
+.session-tags,
+.session-host {
+  font-family: 'Asap Condensed', sans-serif; /* Use Asap Condensed font */
+  font-size: 14px; /* Font size for details */
+  margin: 5px 0; /* Margin for spacing */
+}
+
+.pagination {
+  display: flex;
+  justify-content: center; /* Center pagination buttons */
+  margin: 20px 0; /* Margin above and below pagination */
+}
+
+
+.session-detail-container {
+  max-width: 800px; /* Max width for the detail container */
+  margin: 20px auto; /* Center the container */
+  padding: 20px; /* Padding around the container */
+  background-color: white; /* Background color */
+  border-radius: 5px; /* Rounded corners */
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1); /* Shadow effect */
+}
+
+
+.session-info {
+  margin-top: 20px; /* Margin above info section */
+}
+
+.session-title {
+  font-family: 'Montserrat', sans-serif; /* Use Montserrat font for title */
+  font-size: 24px; /* Title font size */
+  margin-bottom: 15px; /* Margin below title */
+}
+
+.session-location,
+.session-time,
+.session-description,
+.session-capacity,
+.session-tags,
+.session-host {
+  font-family: 'Asap Condensed', sans-serif; /* Use Asap Condensed font */
+  font-size: 16px; /* Font size for details */
+  margin: 5px 0; /* Margin for spacing */
+}
+
+.back-button {
+  background-color: #0d786b; /* Button background color */
+  color: white; /* Button text color */
+  border: none; /* No border */
+  padding: 10px 20px; /* Padding for button */
+  border-radius: 5px; /* Rounded corners */
+  cursor: pointer; /* Pointer cursor on hover */
+  margin-top: 20px; /* Margin above button */
+  transition: background-color 0.3s; /* Transition for hover effect */
+}
+
+.back-button:hover {
+  background-color: #005f5f;
+} /* Darker shade on hover */
