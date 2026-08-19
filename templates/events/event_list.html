@@ -1,0 +1,19 @@
+{% extends 'base.html' %}
+{% block title %}Events — KIPAS{% endblock %}
+{% block content %}
+<div style="max-width:1200px;margin:0 auto;padding:var(--space-5);">
+  <div class="flex items-center justify-between" style="margin-bottom:var(--space-5);">
+    <h2>All Events</h2>
+    <a href="/events/create/" class="btn btn-primary"><i data-lucide="plus" width="16" height="16"></i> Create Event</a>
+  </div>
+  <div class="category-scroller" style="margin-bottom:var(--space-4);">
+    <a href="/events/" class="category-chip {% if not request.GET.category %}active{% endif %}"><span class="category-chip-icon">🌐</span><span class="category-chip-name">All</span></a>
+    {% for cat in categories %}<a href="/events/?category={{ cat.slug }}" class="category-chip {% if request.GET.category == cat.slug %}active{% endif %}">
+      <span class="category-chip-icon">{% if cat.slug == 'sports' %}⚽{% elif cat.slug == 'entertainment' %}🎭{% else %}📍{% endif %}</span>
+      <span class="category-chip-name">{{ cat.name }}</span>
+    </a>{% endfor %}
+  </div>
+  {% if events %}<div class="grid-3">{% for event in events %}{% include 'components/event_card.html' %}{% endfor %}</div>
+  {% else %}<div class="empty-state"><h3>No events found</h3><a href="/events/create/" class="btn btn-primary">Create First Event</a></div>{% endif %}
+</div>
+{% endblock %}

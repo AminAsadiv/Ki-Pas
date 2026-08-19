@@ -1,0 +1,22 @@
+{% extends 'base.html' %}
+{% block title %}Reports — Admin{% endblock %}
+{% block content %}
+<div style="max-width:900px;margin:0 auto;padding:var(--space-5);">
+  <div class="flex items-center justify-between mb-5"><h2>Reports Queue</h2><a href="/admin-panel/" class="btn btn-surface btn-sm">← Dashboard</a></div>
+  {% for report in reports %}
+  <div class="card" style="padding:var(--space-4);margin-bottom:var(--space-3);">
+    <div class="flex items-center justify-between">
+      <div>
+        <span class="badge badge-danger">{{ report.get_reason_display }}</span>
+        <span style="font-size:13px;color:var(--color-text-muted);margin-left:8px;">{{ report.report_type }}</span>
+      </div>
+      <span style="font-size:12px;color:var(--color-text-muted);">{{ report.created_at|date:"M j, Y" }}</span>
+    </div>
+    <p style="font-size:14px;margin-top:var(--space-2);">{{ report.description|default:"No description" }}</p>
+    <div style="font-size:12px;color:var(--color-text-muted);margin-top:var(--space-2);">Reported by: {{ report.reporter.username }}</div>
+  </div>
+  {% empty %}
+  <div class="empty-state"><h3>No open reports</h3><p>The platform is clean! 🎉</p></div>
+  {% endfor %}
+</div>
+{% endblock %}

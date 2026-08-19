@@ -1,0 +1,635 @@
+{% extends 'base.html' %}
+{% block title %}Settings — KIPAS{% endblock %}
+
+{% block content %}
+<div class="settings-page">
+
+  <!-- ═══ LEFT NAV ═══ -->
+  <nav class="settings-nav">
+    <div class="settings-nav-header">
+      {% if user_profile.avatar %}
+      <img src="{{ user_profile.avatar.url }}" class="avatar avatar-lg" alt="{{ user.username }}">
+      {% else %}
+      <div class="avatar-placeholder avatar-lg" style="font-size:22px;">{{ user.username|first|upper }}</div>
+      {% endif %}
+      <div class="settings-nav-user">
+        <div class="settings-nav-name">{{ user_profile.full_name|default:user.username }}</div>
+        <div class="settings-nav-handle">@{{ user.username }}</div>
+      </div>
+    </div>
+
+    <div class="settings-nav-links">
+      <a href="?section=profile" class="settings-nav-link {% if section == 'profile' or not section %}active{% endif %}">
+        <i data-lucide="user" width="16" height="16"></i> Profile
+      </a>
+      <a href="?section=account" class="settings-nav-link {% if section == 'account' %}active{% endif %}">
+        <i data-lucide="at-sign" width="16" height="16"></i> Account
+      </a>
+      <a href="?section=security" class="settings-nav-link {% if section == 'security' %}active{% endif %}">
+        <i data-lucide="lock" width="16" height="16"></i> Security
+      </a>
+      <a href="?section=privacy" class="settings-nav-link {% if section == 'privacy' %}active{% endif %}">
+        <i data-lucide="shield" width="16" height="16"></i> Privacy
+      </a>
+      <a href="?section=notifications" class="settings-nav-link {% if section == 'notifications' %}active{% endif %}">
+        <i data-lucide="bell" width="16" height="16"></i> Notifications
+      </a>
+      <a href="?section=appearance" class="settings-nav-link {% if section == 'appearance' %}active{% endif %}">
+        <i data-lucide="palette" width="16" height="16"></i> Appearance
+      </a>
+      <div class="settings-nav-divider"></div>
+      <a href="/profile/{{ user.username }}/" class="settings-nav-link">
+        <i data-lucide="eye" width="16" height="16"></i> View Profile
+      </a>
+      <a href="?section=danger" class="settings-nav-link danger {% if section == 'danger' %}active{% endif %}">
+        <i data-lucide="trash-2" width="16" height="16"></i> Danger Zone
+      </a>
+    </div>
+  </nav>
+
+  <!-- ═══ MAIN PANEL ═══ -->
+  <div class="settings-main">
+
+    {% if saved %}
+    <div class="settings-saved-banner" id="saved-banner">
+      <i data-lucide="check-circle" width="16" height="16"></i>
+      Changes saved successfully.
+    </div>
+    {% endif %}
+
+    <!-- ── Profile ── -->
+    {% if section == 'profile' or not section %}
+    <div class="settings-section">
+      <div class="settings-section-header">
+        <h2 class="settings-section-title">Profile</h2>
+        <p class="settings-section-sub">This information appears on your public profile.</p>
+      </div>
+      <form method="post" enctype="multipart/form-data">
+        {% csrf_token %}
+        <input type="hidden" name="section" value="profile">
+
+        <div class="settings-media-row">
+          <div class="settings-avatar-wrap">
+            <label class="settings-avatar-label" for="avatar-input">
+              {% if user_profile.avatar %}
+              <img src="{{ user_profile.avatar.url }}" class="settings-avatar-img" id="avatar-preview" alt="">
+              {% else %}
+              <div class="settings-avatar-placeholder" id="avatar-placeholder">{{ user.username|first|upper }}</div>
+              {% endif %}
+              <div class="settings-avatar-overlay">
+                <i data-lucide="camera" width="20" height="20"></i>
+                <span>Change</span>
+              </div>
+            </label>
+            <input type="file" id="avatar-input" name="avatar" accept="image/*" style="display:none"
+              onchange="previewAvatarFile(this)">
+            <div style="font-size:12px;color:var(--color-text-muted);margin-top:var(--space-2);text-align:center;">Profile photo</div>
+          </div>
+          <div class="settings-cover-wrap">
+            <label class="settings-cover-label" for="cover-input">
+              {% if user_profile.cover_photo %}
+              <img src="{{ user_profile.cover_photo.url }}" class="settings-cover-img" id="cover-preview" alt="">
+              {% else %}
+              <div class="settings-cover-placeholder" id="cover-placeholder">
+                <i data-lucide="image" width="24" height="24" style="color:var(--color-text-muted);"></i>
+                <span style="font-size:12px;color:var(--color-text-muted);margin-top:4px;">Add cover photo</span>
+              </div>
+              {% endif %}
+              <div class="settings-cover-overlay">
+                <i data-lucide="camera" width="18" height="18"></i>
+                <span>Change cover</span>
+              </div>
+            </label>
+            <input type="file" id="cover-input" name="cover_photo" accept="image/*" style="display:none"
+              onchange="previewCoverFile(this)">
+          </div>
+        </div>
+
+        <div class="settings-fields">
+          <div class="form-grid-2">
+            <div class="form-group">
+              <label class="form-label">Full Name</label>
+              <input type="text" name="full_name" class="form-control" value="{{ user_profile.full_name }}" placeholder="Your full name">
+            </div>
+            <div class="form-group">
+              <label class="form-label">Date of Birth</label>
+              <input type="date" name="date_of_birth" class="form-control" value="{{ user_profile.date_of_birth|date:'Y-m-d'|default:'' }}">
+            </div>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Bio</label>
+            <textarea name="bio" class="form-control" rows="4" maxlength="500"
+              placeholder="Tell people about yourself…" id="bio-input">{{ user_profile.bio }}</textarea>
+            <div class="form-hint" style="display:flex;justify-content:space-between;">
+              <span>Max 500 characters</span>
+              <span id="bio-count">{{ user_profile.bio|length }}/500</span>
+            </div>
+          </div>
+          <div class="form-grid-2">
+            <div class="form-group">
+              <label class="form-label">City</label>
+              <input type="text" name="city" class="form-control" value="{{ user_profile.city }}" placeholder="London, New York…">
+            </div>
+            <div class="form-group">
+              <label class="form-label">Country</label>
+              <input type="text" name="country" class="form-control" value="{{ user_profile.country }}" placeholder="United Kingdom…">
+            </div>
+          </div>
+
+          <div class="settings-subsection-label">Links &amp; Social</div>
+          <div class="form-group">
+            <label class="form-label"><i data-lucide="globe" width="13" height="13" style="vertical-align:middle;margin-right:4px;"></i> Website</label>
+            <input type="url" name="website" class="form-control" value="{{ user_profile.website }}" placeholder="https://your-site.com">
+          </div>
+          <div class="form-grid-2">
+            <div class="form-group">
+              <label class="form-label"><i data-lucide="instagram" width="13" height="13" style="vertical-align:middle;margin-right:4px;"></i> Instagram</label>
+              <div class="input-prefix-wrap">
+                <span class="input-prefix">@</span>
+                <input type="text" name="instagram" class="form-control input-with-prefix" value="{{ user_profile.instagram }}" placeholder="username">
+              </div>
+            </div>
+            <div class="form-group">
+              <label class="form-label"><i data-lucide="twitter" width="13" height="13" style="vertical-align:middle;margin-right:4px;"></i> Twitter / X</label>
+              <div class="input-prefix-wrap">
+                <span class="input-prefix">@</span>
+                <input type="text" name="twitter" class="form-control input-with-prefix" value="{{ user_profile.twitter }}" placeholder="username">
+              </div>
+            </div>
+            <div class="form-group">
+              <label class="form-label"><i data-lucide="linkedin" width="13" height="13" style="vertical-align:middle;margin-right:4px;"></i> LinkedIn</label>
+              <div class="input-prefix-wrap">
+                <span class="input-prefix">in/</span>
+                <input type="text" name="linkedin" class="form-control input-with-prefix" value="{{ user_profile.linkedin }}" placeholder="your-name">
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="settings-form-footer">
+          <button type="submit" class="btn btn-primary">
+            <i data-lucide="save" width="15" height="15"></i> Save Profile
+          </button>
+          <a href="/profile/{{ user.username }}/" class="btn btn-surface">View Profile</a>
+        </div>
+      </form>
+    </div>
+
+    <!-- ── Account ── -->
+    {% elif section == 'account' %}
+    <div class="settings-section">
+      <div class="settings-section-header">
+        <h2 class="settings-section-title">Account</h2>
+        <p class="settings-section-sub">Manage your login details and username.</p>
+      </div>
+      <form method="post">
+        {% csrf_token %}
+        <input type="hidden" name="section" value="account">
+        <div class="settings-fields">
+          <div class="form-group">
+            <label class="form-label">Username</label>
+            <div class="input-prefix-wrap">
+              <span class="input-prefix">@</span>
+              <input type="text" name="username" class="form-control input-with-prefix"
+                value="{{ user.username }}" required minlength="3" maxlength="50">
+            </div>
+            <div class="form-hint">Only letters, numbers, and underscores. This changes your profile URL.</div>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Email Address</label>
+            <input type="email" class="form-control" value="{{ user.email }}" disabled
+              style="opacity:0.6;cursor:not-allowed;">
+            <div class="form-hint">
+              Email cannot be changed here.
+              {% if user.is_email_verified %}
+              <span style="color:var(--color-primary);font-weight:600;">&#10003; Verified</span>
+              {% else %}
+              <span style="color:var(--color-warning);font-weight:600;">&#9888; Not verified</span>
+              {% endif %}
+            </div>
+          </div>
+          <div class="settings-info-card">
+            <i data-lucide="info" width="16" height="16" style="color:var(--color-primary);flex-shrink:0;"></i>
+            <span>Your account was created on {{ user.date_joined|date:"M j, Y" }}.</span>
+          </div>
+        </div>
+        <div class="settings-form-footer">
+          <button type="submit" class="btn btn-primary">
+            <i data-lucide="save" width="15" height="15"></i> Save Changes
+          </button>
+        </div>
+      </form>
+    </div>
+
+    <!-- ── Security ── -->
+    {% elif section == 'security' %}
+    <div class="settings-section">
+      <div class="settings-section-header">
+        <h2 class="settings-section-title">Security</h2>
+        <p class="settings-section-sub">Keep your account secure with a strong password.</p>
+      </div>
+      <form method="post">
+        {% csrf_token %}
+        <input type="hidden" name="section" value="security">
+        <div class="settings-fields">
+          <div class="form-group">
+            <label class="form-label">Current Password</label>
+            <div class="input-password-wrap">
+              <input type="password" name="old_password" class="form-control" id="old-pw"
+                placeholder="Enter your current password">
+              <button type="button" class="pw-toggle" onclick="togglePw('old-pw', this)">
+                <i data-lucide="eye" width="15" height="15"></i>
+              </button>
+            </div>
+          </div>
+          <div class="form-group">
+            <label class="form-label">New Password</label>
+            <div class="input-password-wrap">
+              <input type="password" name="new_password" class="form-control" id="new-pw"
+                placeholder="Min 8 characters" minlength="8" oninput="checkPwStrength(this.value)">
+              <button type="button" class="pw-toggle" onclick="togglePw('new-pw', this)">
+                <i data-lucide="eye" width="15" height="15"></i>
+              </button>
+            </div>
+            <div class="pw-strength" id="pw-strength" style="display:none;">
+              <div class="pw-strength-bar"><div class="pw-strength-fill" id="pw-strength-fill"></div></div>
+              <span class="pw-strength-label" id="pw-strength-label"></span>
+            </div>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Confirm New Password</label>
+            <div class="input-password-wrap">
+              <input type="password" name="confirm_password" class="form-control" id="confirm-pw"
+                placeholder="Repeat new password" oninput="checkPwMatch()">
+              <button type="button" class="pw-toggle" onclick="togglePw('confirm-pw', this)">
+                <i data-lucide="eye" width="15" height="15"></i>
+              </button>
+            </div>
+            <div id="pw-match-msg" style="font-size:12px;margin-top:4px;display:none;"></div>
+          </div>
+          <div class="settings-info-card" style="border-color:rgba(255,179,71,0.3);background:rgba(255,179,71,0.06);">
+            <i data-lucide="shield" width="16" height="16" style="color:var(--color-warning);flex-shrink:0;"></i>
+            <span>Use at least 8 characters, including uppercase, lowercase, and a number.</span>
+          </div>
+          <div class="settings-toggle-row">
+            <div class="toggle-info">
+              <h5>Two-Factor Authentication</h5>
+              <p>Add an extra layer of security to your account</p>
+            </div>
+            <span class="badge badge-surface">Coming Soon</span>
+          </div>
+        </div>
+        <div class="settings-form-footer">
+          <button type="submit" class="btn btn-primary">
+            <i data-lucide="lock" width="15" height="15"></i> Update Password
+          </button>
+        </div>
+      </form>
+    </div>
+
+    <!-- ── Privacy ── -->
+    {% elif section == 'privacy' %}
+    <div class="settings-section">
+      <div class="settings-section-header">
+        <h2 class="settings-section-title">Privacy</h2>
+        <p class="settings-section-sub">Control who can see your profile and connect with you.</p>
+      </div>
+      <form method="post">
+        {% csrf_token %}
+        <input type="hidden" name="section" value="privacy">
+        <div class="settings-fields">
+          <div class="settings-subsection-label">Profile Visibility</div>
+          <div class="settings-toggle-row">
+            <div class="toggle-info">
+              <h5>Public Profile</h5>
+              <p>Anyone can view your profile, events, and badges</p>
+            </div>
+            <label class="toggle"><input type="checkbox" name="is_public" {% if user_profile.is_public %}checked{% endif %}><span class="toggle-slider"></span></label>
+          </div>
+          <div class="settings-toggle-row">
+            <div class="toggle-info">
+              <h5>Show Email Address</h5>
+              <p>Display your email on your public profile</p>
+            </div>
+            <label class="toggle"><input type="checkbox" name="show_email" {% if user_profile.show_email %}checked{% endif %}><span class="toggle-slider"></span></label>
+          </div>
+          <div class="settings-toggle-row">
+            <div class="toggle-info">
+              <h5>Show Friends List</h5>
+              <p>Let others see who your friends are</p>
+            </div>
+            <label class="toggle"><input type="checkbox" name="show_friends" {% if user_profile.show_friends %}checked{% endif %}><span class="toggle-slider"></span></label>
+          </div>
+          <div class="settings-toggle-row">
+            <div class="toggle-info">
+              <h5>Share Location</h5>
+              <p>Allow nearby event suggestions based on your location</p>
+            </div>
+            <label class="toggle"><input type="checkbox" name="share_location" {% if user_profile.share_location %}checked{% endif %}><span class="toggle-slider"></span></label>
+          </div>
+          <div class="settings-subsection-label">Who Can Contact You</div>
+          <div class="form-group">
+            <label class="form-label">Who can send you messages?</label>
+            <select name="who_can_message" class="form-control">
+              <option value="everyone" {% if user_profile.who_can_message == 'everyone' %}selected{% endif %}>Everyone</option>
+              <option value="friends" {% if user_profile.who_can_message == 'friends' %}selected{% endif %}>Friends Only</option>
+              <option value="nobody" {% if user_profile.who_can_message == 'nobody' %}selected{% endif %}>Nobody</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Who can send you friend requests?</label>
+            <select name="who_can_friend" class="form-control">
+              <option value="everyone" {% if user_profile.who_can_friend == 'everyone' %}selected{% endif %}>Everyone</option>
+              <option value="nobody" {% if user_profile.who_can_friend == 'nobody' %}selected{% endif %}>Nobody</option>
+            </select>
+          </div>
+        </div>
+        <div class="settings-form-footer">
+          <button type="submit" class="btn btn-primary">
+            <i data-lucide="shield" width="15" height="15"></i> Save Privacy Settings
+          </button>
+        </div>
+      </form>
+    </div>
+
+    <!-- ── Notifications ── -->
+    {% elif section == 'notifications' %}
+    <div class="settings-section">
+      <div class="settings-section-header">
+        <h2 class="settings-section-title">Notifications</h2>
+        <p class="settings-section-sub">Choose how and when KIPAS contacts you.</p>
+      </div>
+      <form method="post">
+        {% csrf_token %}
+        <input type="hidden" name="section" value="notifications">
+        <div class="settings-fields">
+          <div class="settings-subsection-label">Email Notifications</div>
+          <div class="settings-toggle-row">
+            <div class="toggle-info"><h5>Friend Requests</h5><p>When someone sends you a friend request</p></div>
+            <label class="toggle"><input type="checkbox" name="email_friend_requests" {% if notif_pref.email_friend_requests %}checked{% endif %}><span class="toggle-slider"></span></label>
+          </div>
+          <div class="settings-toggle-row">
+            <div class="toggle-info"><h5>Event Reminders</h5><p>Reminders before events you're attending</p></div>
+            <label class="toggle"><input type="checkbox" name="email_event_reminders" {% if notif_pref.email_event_reminders %}checked{% endif %}><span class="toggle-slider"></span></label>
+          </div>
+          <div class="settings-toggle-row">
+            <div class="toggle-info"><h5>Event Updates</h5><p>When an event you joined is changed or cancelled</p></div>
+            <label class="toggle"><input type="checkbox" name="email_event_updates" {% if notif_pref.email_event_updates %}checked{% endif %}><span class="toggle-slider"></span></label>
+          </div>
+          <div class="settings-toggle-row">
+            <div class="toggle-info"><h5>New Messages</h5><p>Email for new direct messages</p></div>
+            <label class="toggle"><input type="checkbox" name="email_new_messages" {% if notif_pref.email_new_messages %}checked{% endif %}><span class="toggle-slider"></span></label>
+          </div>
+          <div class="settings-toggle-row">
+            <div class="toggle-info"><h5>Weekly Digest</h5><p>A summary of events and activity near you</p></div>
+            <label class="toggle"><input type="checkbox" name="email_weekly_digest" {% if notif_pref.email_weekly_digest %}checked{% endif %}><span class="toggle-slider"></span></label>
+          </div>
+          <div class="settings-subsection-label">Push Notifications</div>
+          <div class="settings-toggle-row">
+            <div class="toggle-info"><h5>Friend Requests</h5><p>Instant notification for new friend requests</p></div>
+            <label class="toggle"><input type="checkbox" name="push_friend_requests" {% if notif_pref.push_friend_requests %}checked{% endif %}><span class="toggle-slider"></span></label>
+          </div>
+          <div class="settings-toggle-row">
+            <div class="toggle-info"><h5>Event Reminders</h5><p>Push reminders 1 hour before events</p></div>
+            <label class="toggle"><input type="checkbox" name="push_event_reminders" {% if notif_pref.push_event_reminders %}checked{% endif %}><span class="toggle-slider"></span></label>
+          </div>
+          <div class="settings-toggle-row">
+            <div class="toggle-info"><h5>New Messages</h5><p>Push notifications for direct messages</p></div>
+            <label class="toggle"><input type="checkbox" name="push_new_messages" {% if notif_pref.push_new_messages %}checked{% endif %}><span class="toggle-slider"></span></label>
+          </div>
+          <div class="settings-toggle-row">
+            <div class="toggle-info"><h5>Likes on Your Events</h5><p>When someone likes an event you host</p></div>
+            <label class="toggle"><input type="checkbox" name="push_likes" {% if notif_pref.push_likes %}checked{% endif %}><span class="toggle-slider"></span></label>
+          </div>
+        </div>
+        <div class="settings-form-footer">
+          <button type="submit" class="btn btn-primary">
+            <i data-lucide="bell" width="15" height="15"></i> Save Preferences
+          </button>
+        </div>
+      </form>
+    </div>
+
+    <!-- ── Appearance ── -->
+    {% elif section == 'appearance' %}
+    <div class="settings-section">
+      <div class="settings-section-header">
+        <h2 class="settings-section-title">Appearance</h2>
+        <p class="settings-section-sub">Customize how KIPAS looks for you.</p>
+      </div>
+      <form method="post">
+        {% csrf_token %}
+        <input type="hidden" name="section" value="appearance">
+        <div class="settings-fields">
+          <div class="settings-subsection-label">Theme</div>
+          <div class="appearance-theme-grid">
+            <label class="appearance-theme-option">
+              <input type="radio" name="dark_mode" value="on" {% if user_profile.dark_mode %}checked{% endif %}
+                class="sr-only" onchange="previewTheme('dark')">
+              <div class="appearance-theme-card {% if user_profile.dark_mode %}selected{% endif %}" id="theme-dark">
+                <div class="appearance-theme-mockup dark">
+                  <div class="atm-navbar"></div>
+                  <div class="atm-content"><div class="atm-card"></div><div class="atm-card"></div></div>
+                </div>
+                <div class="appearance-theme-label">
+                  <i data-lucide="moon" width="14" height="14"></i> Dark Mode
+                </div>
+              </div>
+            </label>
+            <label class="appearance-theme-option">
+              <input type="radio" name="dark_mode" value="" {% if not user_profile.dark_mode %}checked{% endif %}
+                class="sr-only" onchange="previewTheme('light')">
+              <div class="appearance-theme-card {% if not user_profile.dark_mode %}selected{% endif %}" id="theme-light">
+                <div class="appearance-theme-mockup light">
+                  <div class="atm-navbar"></div>
+                  <div class="atm-content"><div class="atm-card"></div><div class="atm-card"></div></div>
+                </div>
+                <div class="appearance-theme-label">
+                  <i data-lucide="sun" width="14" height="14"></i> Light Mode
+                </div>
+              </div>
+            </label>
+          </div>
+          <div class="settings-subsection-label" style="margin-top:var(--space-5);">Language</div>
+          <div class="form-group">
+            <select name="language" class="form-control">
+              <option value="en" {% if user_profile.language == 'en' %}selected{% endif %}>English</option>
+              <option value="fa" {% if user_profile.language == 'fa' %}selected{% endif %}>Persian</option>
+              <option value="ar" {% if user_profile.language == 'ar' %}selected{% endif %}>Arabic</option>
+              <option value="fr" {% if user_profile.language == 'fr' %}selected{% endif %}>French</option>
+              <option value="de" {% if user_profile.language == 'de' %}selected{% endif %}>German</option>
+              <option value="es" {% if user_profile.language == 'es' %}selected{% endif %}>Spanish</option>
+              <option value="zh" {% if user_profile.language == 'zh' %}selected{% endif %}>Chinese</option>
+              <option value="ja" {% if user_profile.language == 'ja' %}selected{% endif %}>Japanese</option>
+              <option value="tr" {% if user_profile.language == 'tr' %}selected{% endif %}>Turkish</option>
+            </select>
+          </div>
+        </div>
+        <div class="settings-form-footer">
+          <button type="submit" class="btn btn-primary">
+            <i data-lucide="palette" width="15" height="15"></i> Save Appearance
+          </button>
+        </div>
+      </form>
+    </div>
+
+    <!-- ── Danger Zone ── -->
+    {% elif section == 'danger' %}
+    <div class="settings-section">
+      <div class="settings-section-header">
+        <h2 class="settings-section-title" style="color:var(--color-danger);">Danger Zone</h2>
+        <p class="settings-section-sub">These actions are irreversible. Please read carefully.</p>
+      </div>
+      <div class="settings-fields">
+        <div class="danger-card">
+          <div class="danger-card-info">
+            <h5>Deactivate Account</h5>
+            <p>Temporarily disable your account. Your profile and events will be hidden. You can reactivate by logging back in.</p>
+          </div>
+          <form method="post" onsubmit="return confirm('Deactivate your account?')">
+            {% csrf_token %}
+            <input type="hidden" name="section" value="danger">
+            <input type="hidden" name="danger_action" value="deactivate">
+            <button type="submit" class="btn btn-surface" style="border-color:var(--color-warning);color:var(--color-warning);">
+              <i data-lucide="pause-circle" width="14" height="14"></i> Deactivate
+            </button>
+          </form>
+        </div>
+        <div class="danger-card" style="border-color:rgba(255,77,109,0.3);">
+          <div class="danger-card-info">
+            <h5 style="color:var(--color-danger);">Delete Account</h5>
+            <p>Permanently delete your account, profile, events, and all data. <strong>This cannot be undone.</strong></p>
+          </div>
+          <button type="button" class="btn btn-danger" onclick="confirmDelete()">
+            <i data-lucide="trash-2" width="14" height="14"></i> Delete Account
+          </button>
+        </div>
+      </div>
+    </div>
+    {% endif %}
+
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function previewAvatarFile(input) {
+  const file = input.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = e => {
+    let img = document.getElementById('avatar-preview');
+    const placeholder = document.getElementById('avatar-placeholder');
+    if (!img) {
+      img = document.createElement('img');
+      img.id = 'avatar-preview';
+      img.className = 'settings-avatar-img';
+      if (placeholder) placeholder.replaceWith(img);
+    }
+    img.src = e.target.result;
+  };
+  reader.readAsDataURL(file);
+}
+
+function previewCoverFile(input) {
+  const file = input.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = e => {
+    let img = document.getElementById('cover-preview');
+    const placeholder = document.getElementById('cover-placeholder');
+    if (!img) {
+      img = document.createElement('img');
+      img.id = 'cover-preview';
+      img.className = 'settings-cover-img';
+      if (placeholder) placeholder.replaceWith(img);
+    }
+    img.src = e.target.result;
+  };
+  reader.readAsDataURL(file);
+}
+
+const bioInput = document.getElementById('bio-input');
+const bioCount = document.getElementById('bio-count');
+if (bioInput && bioCount) {
+  bioInput.addEventListener('input', () => {
+    bioCount.textContent = `${bioInput.value.length}/500`;
+  });
+}
+
+function togglePw(id, btn) {
+  const input = document.getElementById(id);
+  const isText = input.type === 'text';
+  input.type = isText ? 'password' : 'text';
+  btn.innerHTML = isText
+    ? '<i data-lucide="eye" width="15" height="15"></i>'
+    : '<i data-lucide="eye-off" width="15" height="15"></i>';
+  if (window.lucide) lucide.createIcons();
+}
+
+function checkPwStrength(pw) {
+  const el = document.getElementById('pw-strength');
+  const fill = document.getElementById('pw-strength-fill');
+  const label = document.getElementById('pw-strength-label');
+  if (!pw) { if (el) el.style.display = 'none'; return; }
+  if (el) el.style.display = 'flex';
+  let score = 0;
+  if (pw.length >= 8) score++;
+  if (pw.length >= 12) score++;
+  if (/[A-Z]/.test(pw)) score++;
+  if (/[0-9]/.test(pw)) score++;
+  if (/[^A-Za-z0-9]/.test(pw)) score++;
+  const levels = [
+    { pct: 20, color: 'var(--color-danger)', text: 'Very weak' },
+    { pct: 40, color: 'var(--color-danger)', text: 'Weak' },
+    { pct: 60, color: 'var(--color-warning)', text: 'Fair' },
+    { pct: 80, color: '#4DA6FF', text: 'Strong' },
+    { pct: 100, color: 'var(--color-primary)', text: 'Very strong' },
+  ];
+  const lvl = levels[Math.min(score, 4)];
+  if (fill) { fill.style.width = `${lvl.pct}%`; fill.style.background = lvl.color; }
+  if (label) { label.textContent = lvl.text; label.style.color = lvl.color; }
+}
+
+function checkPwMatch() {
+  const newPw = document.getElementById('new-pw')?.value;
+  const conf = document.getElementById('confirm-pw')?.value;
+  const msg = document.getElementById('pw-match-msg');
+  if (!msg || !conf) return;
+  msg.style.display = 'block';
+  if (newPw === conf) {
+    msg.textContent = 'Passwords match';
+    msg.style.color = 'var(--color-primary)';
+  } else {
+    msg.textContent = 'Passwords do not match';
+    msg.style.color = 'var(--color-danger)';
+  }
+}
+
+function previewTheme(mode) {
+  document.getElementById('theme-dark')?.classList.toggle('selected', mode === 'dark');
+  document.getElementById('theme-light')?.classList.toggle('selected', mode === 'light');
+}
+
+function confirmDelete() {
+  const first = confirm('Are you sure? This will permanently delete your account and all data.');
+  if (!first) return;
+  const second = prompt('Type your username to confirm:');
+  if (second === '{{ user.username }}') {
+    alert('Account deletion is disabled in this demo. Contact support to proceed.');
+  } else if (second !== null) {
+    alert('Username did not match. Account not deleted.');
+  }
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+  const banner = document.getElementById('saved-banner');
+  if (banner) setTimeout(() => {
+    banner.style.transition = 'opacity 0.5s ease';
+    banner.style.opacity = '0';
+    setTimeout(() => banner.remove(), 500);
+  }, 4000);
+});
+</script>
+{% endblock %}

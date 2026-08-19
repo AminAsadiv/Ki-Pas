@@ -1,0 +1,29 @@
+{% extends 'base.html' %}
+{% block title %}Edit: {{ event.title }} — KIPAS{% endblock %}
+{% block content %}
+<div style="max-width:760px;margin:0 auto;padding:var(--space-5);">
+  <h2 style="margin-bottom:var(--space-5);">Edit Event</h2>
+  <div class="card" style="padding:var(--space-6);">
+    <form method="post" enctype="multipart/form-data">
+      {% csrf_token %}
+      <div class="form-group"><label class="form-label">Title</label><input type="text" name="title" class="form-control" value="{{ event.title }}" required></div>
+      <div class="form-group"><label class="form-label">Description</label><textarea name="description" class="form-control" rows="5" required>{{ event.description }}</textarea></div>
+      <div class="form-group"><label class="form-label">Cover Image</label><input type="file" name="cover_image" class="form-control" accept="image/*"></div>
+      <div class="grid-2">
+        <div class="form-group"><label class="form-label">Start</label><input type="datetime-local" name="start_datetime" class="form-control" value="{{ event.start_datetime|date:'Y-m-d\TH:i' }}"></div>
+        <div class="form-group"><label class="form-label">End</label><input type="datetime-local" name="end_datetime" class="form-control" value="{{ event.end_datetime|date:'Y-m-d\TH:i' }}"></div>
+      </div>
+      <div class="form-group"><label class="form-label">Location Name</label><input type="text" name="location_name" class="form-control" value="{{ event.location_name }}"></div>
+      <div class="form-group"><label class="form-label">Privacy</label>
+        <select name="privacy" class="form-control">{% for val, label in event.PRIVACY_CHOICES %}<option value="{{ val }}" {% if event.privacy == val %}selected{% endif %}>{{ label }}</option>{% endfor %}</select>
+      </div>
+      <div class="form-group"><label class="form-label">Rules</label><textarea name="rules" class="form-control" rows="3">{{ event.rules }}</textarea></div>
+      <div class="flex gap-3 mt-4">
+        <a href="/events/{{ event.pk }}/" class="btn btn-surface">Cancel</a>
+        <button type="submit" name="action" value="save" class="btn btn-surface">Save Draft</button>
+        <button type="submit" name="action" value="publish" class="btn btn-primary">Publish</button>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}

@@ -1,0 +1,382 @@
+{% extends 'base.html' %}
+{% block title %}{% if q %}Search "{{ q }}"{% else %}Discover{% endif %} — KIPAS{% endblock %}
+
+{% block content %}
+<div class="search-page">
+
+  <!-- ═══ LEFT FILTER SIDEBAR ═══ -->
+  <aside class="search-sidebar">
+
+    <div class="search-sidebar-inner">
+      <!-- Category -->
+      <div class="search-filter-group">
+        <div class="search-filter-label">
+          <i data-lucide="tag" width="13" height="13"></i> Category
+        </div>
+        <div class="search-filter-list">
+          <a href="?q={{ q }}&tab={{ tab }}&sort={{ sort }}" class="search-filter-item {% if not category %}active{% endif %}">
+            🗺️ All Categories
+          </a>
+          {% for cat in categories %}
+          <a href="?q={{ q }}&tab={{ tab }}&category={{ cat.slug }}&sort={{ sort }}" class="search-filter-item {% if category == cat.slug %}active{% endif %}">
+            {{ cat.icon|default:"📍" }} {{ cat.name }}
+          </a>
+          {% endfor %}
+        </div>
+      </div>
+
+      <!-- Price -->
+      <div class="search-filter-group">
+        <div class="search-filter-label">
+          <i data-lucide="tag" width="13" height="13"></i> Price
+        </div>
+        <div class="search-filter-list">
+          <a href="?q={{ q }}&tab={{ tab }}&category={{ category }}&sort={{ sort }}" class="search-filter-item {% if not event_type %}active{% endif %}">Any price</a>
+          <a href="?q={{ q }}&tab={{ tab }}&category={{ category }}&type=free&sort={{ sort }}" class="search-filter-item {% if event_type == 'free' %}active{% endif %}">🆓 Free</a>
+          <a href="?q={{ q }}&tab={{ tab }}&category={{ category }}&type=paid&sort={{ sort }}" class="search-filter-item {% if event_type == 'paid' %}active{% endif %}">💳 Paid</a>
+        </div>
+      </div>
+
+      <!-- Sort -->
+      <div class="search-filter-group">
+        <div class="search-filter-label">
+          <i data-lucide="arrow-up-down" width="13" height="13"></i> Sort by
+        </div>
+        <div class="search-filter-list">
+          <a href="?q={{ q }}&tab={{ tab }}&category={{ category }}&type={{ event_type }}&sort=relevance" class="search-filter-item {% if sort == 'relevance' or not sort %}active{% endif %}">✨ Relevance</a>
+          <a href="?q={{ q }}&tab={{ tab }}&category={{ category }}&type={{ event_type }}&sort=date" class="search-filter-item {% if sort == 'date' %}active{% endif %}">📅 Soonest</a>
+          <a href="?q={{ q }}&tab={{ tab }}&category={{ category }}&type={{ event_type }}&sort=popular" class="search-filter-item {% if sort == 'popular' %}active{% endif %}">🔥 Popular</a>
+          <a href="?q={{ q }}&tab={{ tab }}&category={{ category }}&type={{ event_type }}&sort=newest" class="search-filter-item {% if sort == 'newest' %}active{% endif %}">🆕 Newest</a>
+        </div>
+      </div>
+
+      <!-- Active filter chips -->
+      {% if category or event_type %}
+      <div class="search-filter-group">
+        <div class="search-filter-label">Active filters</div>
+        <div style="display:flex;gap:6px;flex-wrap:wrap;">
+          {% if category %}<a href="?q={{ q }}&tab={{ tab }}&sort={{ sort }}" class="search-active-chip">{{ category }} ✕</a>{% endif %}
+          {% if event_type %}<a href="?q={{ q }}&tab={{ tab }}&category={{ category }}&sort={{ sort }}" class="search-active-chip">{{ event_type }} ✕</a>{% endif %}
+          <a href="?q={{ q }}&tab={{ tab }}" class="search-active-chip danger">Clear all</a>
+        </div>
+      </div>
+      {% endif %}
+    </div>
+
+  </aside>
+
+  <!-- ═══ MAIN RESULTS ═══ -->
+  <div class="search-main">
+
+    <!-- Search bar -->
+    <form method="get" action="/search/" id="search-form" style="position:relative;">
+      {% if category %}<input type="hidden" name="category" value="{{ category }}">{% endif %}
+      {% if event_type %}<input type="hidden" name="type" value="{{ event_type }}">{% endif %}
+      {% if sort %}<input type="hidden" name="sort" value="{{ sort }}">{% endif %}
+      {% if tab %}<input type="hidden" name="tab" value="{{ tab }}">{% endif %}
+
+      <div class="search-bar-wrap">
+        <i data-lucide="search" width="18" height="18" style="color:var(--color-text-muted);flex-shrink:0;"></i>
+        <input type="text" name="q" id="search-input" value="{{ q }}" autocomplete="off"
+          placeholder="Search events, people, places…"
+          oninput="handleLiveSearch(this.value)">
+        {% if q %}
+        <a href="/search/" class="search-clear-btn" title="Clear">
+          <i data-lucide="x" width="15" height="15"></i>
+        </a>
+        {% endif %}
+        <button type="submit" class="btn btn-primary btn-sm">
+          <i data-lucide="search" width="14" height="14"></i> Search
+        </button>
+      </div>
+
+      <!-- Live suggestions (inside form so position:absolute works relative to form) -->
+      <div id="search-live" style="display:none;position:absolute;left:0;right:0;top:100%;margin-top:4px;background:var(--color-surface);border:1px solid var(--color-border);border-radius:var(--radius-md);z-index:50;overflow:hidden;box-shadow:var(--shadow-lg);"></div>
+    </form>
+
+    {% if q or category or event_type %}
+
+    <!-- Tabs -->
+    <div class="search-tabs">
+      {% with ev_count=events|length usr_count=users|length %}
+      <a href="?q={{ q }}&category={{ category }}&type={{ event_type }}&sort={{ sort }}&tab=all"
+        class="search-tab {% if tab == 'all' or not tab %}active{% endif %}">
+        All
+        <span class="search-tab-count">{{ ev_count }}{% if usr_count %} + {{ usr_count }}{% endif %}</span>
+      </a>
+      <a href="?q={{ q }}&category={{ category }}&type={{ event_type }}&sort={{ sort }}&tab=events"
+        class="search-tab {% if tab == 'events' %}active{% endif %}">
+        <i data-lucide="calendar" width="13" height="13"></i> Events
+        <span class="search-tab-count">{{ ev_count }}</span>
+      </a>
+      <a href="?q={{ q }}&category={{ category }}&type={{ event_type }}&sort={{ sort }}&tab=people"
+        class="search-tab {% if tab == 'people' %}active{% endif %}">
+        <i data-lucide="users" width="13" height="13"></i> People
+        <span class="search-tab-count">{{ usr_count }}</span>
+      </a>
+      {% endwith %}
+    </div>
+
+    <!-- Results header -->
+    <div class="search-results-header">
+      <span class="search-results-label">
+        {% if q %}
+        {% with total=events|length %}
+        <strong>{{ total }}</strong> result{{ total|pluralize }} for <strong>"{{ q }}"</strong>
+        {% endwith %}
+        {% else %}
+        <strong>{{ events|length }}</strong> event{{ events|length|pluralize }} found
+        {% endif %}
+      </span>
+      <!-- Mobile filter toggle -->
+      <button class="btn btn-surface btn-sm search-filter-toggle" onclick="toggleMobileFilters()">
+        <i data-lucide="sliders-horizontal" width="13" height="13"></i> Filters
+      </button>
+    </div>
+
+    <!-- ── Events ── -->
+    {% if tab != 'people' %}
+      {% if events %}
+        {% if tab == 'all' and users %}
+        <div class="search-section-header">
+          <span><i data-lucide="calendar" width="14" height="14" style="color:var(--color-primary);"></i> Events</span>
+          <a href="?q={{ q }}&category={{ category }}&type={{ event_type }}&sort={{ sort }}&tab=events" class="search-see-all">See all →</a>
+        </div>
+        {% endif %}
+        <div class="search-events-grid">
+          {% for event in events %}
+          <a href="/events/{{ event.pk }}/" class="search-event-card">
+            <div class="search-event-thumb">
+              {% if event.cover_image %}
+              <img src="{{ event.cover_image.url }}" alt="{{ event.title }}" loading="lazy">
+              {% else %}
+              <div class="search-event-thumb-placeholder" {% if event.category.color %}style="background:linear-gradient(135deg,{{ event.category.color }}22,{{ event.category.color }}55);"{% endif %}>
+                {{ event.category.icon|default:"📍" }}
+              </div>
+              {% endif %}
+              <div class="search-event-thumb-overlay">
+                {% if event.event_type == 'free' %}<span class="search-event-badge free">FREE</span>{% endif %}
+                {% if event.privacy == 'private' %}<span class="search-event-badge priv">🔒</span>{% endif %}
+              </div>
+            </div>
+            <div class="search-event-body">
+              {% if event.category %}
+              <div class="search-event-cat">{{ event.category.icon|default:"" }} {{ event.category.name }}</div>
+              {% endif %}
+              <div class="search-event-title">{{ event.title }}</div>
+              <div class="search-event-meta">
+                <span>
+                  <i data-lucide="calendar" width="11" height="11"></i>
+                  {{ event.start_datetime|date:"D, M j · g:iA" }}
+                </span>
+                {% if event.location_name %}
+                <span><i data-lucide="map-pin" width="11" height="11"></i> {{ event.location_name|truncatechars:30 }}</span>
+                {% elif event.is_online %}
+                <span><i data-lucide="video" width="11" height="11"></i> Online</span>
+                {% endif %}
+                <span><i data-lucide="users" width="11" height="11"></i> {{ event.participant_count }} going</span>
+              </div>
+              <div class="search-event-host">
+                {% if event.host.profile.avatar %}
+                <img src="{{ event.host.profile.avatar.url }}" class="avatar" style="width:18px;height:18px;border-radius:50%;" alt="">
+                {% else %}
+                <div style="width:18px;height:18px;border-radius:50%;background:var(--color-primary-glow);display:inline-flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;color:var(--color-primary);">{{ event.host.username|first|upper }}</div>
+                {% endif %}
+                <span>{{ event.host.username }}</span>
+              </div>
+            </div>
+          </a>
+          {% endfor %}
+        </div>
+      {% elif tab != 'people' %}
+      <div class="search-empty">
+        <div class="search-empty-icon"><i data-lucide="calendar-x" width="40" height="40"></i></div>
+        <h3>No events found{% if q %} for "{{ q }}"{% endif %}</h3>
+        <p>Try different keywords or remove filters.</p>
+        {% if category or event_type %}<a href="?q={{ q }}" class="btn btn-surface btn-sm">Clear filters</a>{% endif %}
+      </div>
+      {% endif %}
+    {% endif %}
+
+    <!-- ── People ── -->
+    {% if tab != 'events' %}
+      {% if users %}
+        <div class="search-section-header" {% if events and tab == 'all' %}style="margin-top:var(--space-8);"{% endif %}>
+          <span><i data-lucide="users" width="14" height="14" style="color:var(--color-primary);"></i> People</span>
+          {% if tab == 'all' %}<a href="?q={{ q }}&tab=people" class="search-see-all">See all →</a>{% endif %}
+        </div>
+        <div class="search-people-grid">
+          {% for person in users %}
+          <div class="search-person-card">
+            <a href="/profile/{{ person.username }}/" style="position:relative;flex-shrink:0;">
+              {% if person.profile.avatar %}
+              <img src="{{ person.profile.avatar.url }}" class="avatar" style="width:56px;height:56px;border-radius:50%;border:2px solid var(--color-border);" alt="{{ person.username }}">
+              {% else %}
+              <div class="avatar-placeholder" style="width:56px;height:56px;border-radius:50%;font-size:20px;">{{ person.username|first|upper }}</div>
+              {% endif %}
+              {% if person.profile.is_online %}
+              <span style="position:absolute;bottom:2px;right:2px;width:11px;height:11px;background:var(--color-primary);border-radius:50%;border:2px solid var(--color-surface);"></span>
+              {% endif %}
+            </a>
+            <div class="search-person-info">
+              <a href="/profile/{{ person.username }}/" class="search-person-name">{{ person.profile.full_name|default:person.username }}</a>
+              <div class="search-person-meta">
+                <span>@{{ person.username }}</span>
+                {% if person.profile.level %}<span class="level-badge" style="font-size:10px;padding:2px 6px;">Lv{{ person.profile.level }}</span>{% endif %}
+                {% if person.profile.is_verified_host %}<span style="color:var(--color-primary);font-size:11px;">✓ Host</span>{% endif %}
+              </div>
+              {% if person.profile.city %}<div class="search-person-loc"><i data-lucide="map-pin" width="11" height="11"></i> {{ person.profile.city }}</div>{% endif %}
+              {% if person.profile.bio %}<p class="search-person-bio">{{ person.profile.bio|truncatechars:80 }}</p>{% endif %}
+            </div>
+            {% if user.is_authenticated and user != person %}
+            <div class="search-person-actions">
+              <button class="btn btn-primary btn-sm" onclick="followUser('{{ person.username }}', this)">
+                <i data-lucide="rss" width="12" height="12"></i> Follow
+              </button>
+            </div>
+            {% endif %}
+          </div>
+          {% endfor %}
+        </div>
+      {% elif tab == 'people' %}
+      <div class="search-empty">
+        <div class="search-empty-icon"><i data-lucide="users" width="40" height="40"></i></div>
+        <h3>No people found for "{{ q }}"</h3>
+        <p>Try a different name or username.</p>
+      </div>
+      {% endif %}
+    {% endif %}
+
+    <!-- Total empty state -->
+    {% if not events and not users %}
+    <div class="search-empty" style="padding:var(--space-12) var(--space-6);">
+      <div class="search-empty-icon" style="width:80px;height:80px;border-radius:50%;background:var(--color-surface);display:flex;align-items:center;justify-content:center;margin:0 auto var(--space-4);">
+        <i data-lucide="search-x" width="36" height="36"></i>
+      </div>
+      <h3>No results for "{{ q }}"</h3>
+      <p>Try different keywords, check spelling, or browse categories below.</p>
+      <a href="/feed/" class="btn btn-primary btn-sm">Browse All Events</a>
+    </div>
+    {% endif %}
+
+    {% else %}
+
+    <!-- ═══ DISCOVERY STATE ═══ -->
+    <div class="search-discovery">
+
+      <!-- Trending -->
+      <div class="search-discovery-section">
+        <h3 class="search-discovery-title">
+          <i data-lucide="trending-up" width="18" height="18" style="color:var(--color-primary);"></i>
+          Trending searches
+        </h3>
+        <div class="search-trending-chips">
+          {% for term in trending_terms %}
+          <a href="?q={{ term }}" class="search-trending-chip">{{ term }}</a>
+          {% endfor %}
+        </div>
+      </div>
+
+      <!-- Browse categories -->
+      <div class="search-discovery-section">
+        <h3 class="search-discovery-title">
+          <i data-lucide="grid-3x3" width="18" height="18" style="color:var(--color-primary);"></i>
+          Browse by category
+        </h3>
+        <div class="search-cat-grid">
+          {% for cat in categories %}
+          <a href="?category={{ cat.slug }}" class="search-cat-card" {% if cat.color %}style="--cat-color:{{ cat.color }};"{% endif %}>
+            <div class="search-cat-emoji">{{ cat.icon|default:"📍" }}</div>
+            <div class="search-cat-name">{{ cat.name }}</div>
+          </a>
+          {% endfor %}
+        </div>
+      </div>
+
+    </div>
+    {% endif %}
+
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+let liveTimer;
+
+function handleLiveSearch(val) {
+  clearTimeout(liveTimer);
+  const box = document.getElementById('search-live');
+  if (val.length < 2) { box.style.display = 'none'; return; }
+  liveTimer = setTimeout(() => {
+    fetch(`/api/v1/search/?q=${encodeURIComponent(val)}`)
+      .then(r => r.json())
+      .then(data => {
+        const evts = (data.events || []).slice(0, 5);
+        const usrs = (data.users || []).slice(0, 3);
+        if (!evts.length && !usrs.length) { box.style.display = 'none'; return; }
+        let html = '';
+        if (evts.length) {
+          html += `<div class="search-live-group-label">Events</div>`;
+          evts.forEach(e => {
+            html += `<a href="/events/${e.id}/" class="search-live-item">
+              <span style="font-size:16px;flex-shrink:0;">${e.category_icon||'📍'}</span>
+              <div>
+                <div style="font-size:13px;font-weight:600;">${escHtml(e.title)}</div>
+                ${e.location_name ? `<div style="font-size:11px;color:var(--color-text-muted);">📍 ${escHtml(e.location_name)}</div>` : ''}
+              </div>
+            </a>`;
+          });
+        }
+        if (usrs.length) {
+          html += `<div class="search-live-group-label" style="border-top:1px solid var(--color-border);">People</div>`;
+          usrs.forEach(u => {
+            html += `<a href="/profile/${u.username}/" class="search-live-item">
+              <div style="width:28px;height:28px;border-radius:50%;background:var(--color-primary-glow);display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;color:var(--color-primary);flex-shrink:0;">${(u.username||'?')[0].toUpperCase()}</div>
+              <div>
+                <div style="font-size:13px;font-weight:600;">${escHtml(u.full_name || u.username)}</div>
+                <div style="font-size:11px;color:var(--color-text-muted);">@${escHtml(u.username)}</div>
+              </div>
+            </a>`;
+          });
+        }
+        html += `<a href="/search/?q=${encodeURIComponent(val)}" class="search-live-item search-live-see-all">
+          <i data-lucide="search" width="13" height="13"></i>
+          See all results for <strong>"${escHtml(val)}"</strong>
+        </a>`;
+        box.innerHTML = html;
+        box.style.display = 'block';
+        if (window.lucide) lucide.createIcons();
+      });
+  }, 220);
+}
+
+document.addEventListener('click', e => {
+  if (!e.target.closest('#search-form'))
+    document.getElementById('search-live').style.display = 'none';
+});
+
+document.getElementById('search-input').addEventListener('keydown', e => {
+  if (e.key === 'Escape') document.getElementById('search-live').style.display = 'none';
+});
+
+function escHtml(s) {
+  return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+function toggleMobileFilters() {
+  document.querySelector('.search-sidebar').classList.toggle('mobile-open');
+}
+
+const csrfToken = '{{ csrf_token }}';
+function followUser(username, btn) {
+  fetch(`/api/v1/social/follow/${username}/`, { method:'POST', headers:{'X-CSRFToken':csrfToken} })
+    .then(r=>r.json()).then(d => {
+      btn.innerHTML = d.following
+        ? '<i data-lucide="check" width="12" height="12"></i> Following'
+        : '<i data-lucide="rss" width="12" height="12"></i> Follow';
+      if (window.lucide) lucide.createIcons();
+    });
+}
+</script>
+{% endblock %}

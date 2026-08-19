@@ -1,0 +1,99 @@
+{% load tz %}
+<div class="event-card" onclick="window.location='/events/{{ event.pk }}/'">
+  <!-- Cover -->
+  <div class="event-card-cover-wrap">
+    {% if event.cover_image %}
+    <img src="{{ event.cover_image.url }}" class="event-card-cover" alt="{{ event.title }}" loading="lazy">
+    {% else %}
+    <div class="event-card-cover-placeholder" style="{% if event.category.color %}background:linear-gradient(135deg,{{ event.category.color }}22,{{ event.category.color }}66);{% endif %}">
+      <span class="event-card-cover-emoji">{{ event.category.icon|default:"📍" }}</span>
+    </div>
+    {% endif %}
+    <div class="event-card-cover-overlay"></div>
+
+    <!-- Date badge -->
+    <div class="event-card-date-badge">
+      <div class="day">{{ event.start_datetime|date:"j" }}</div>
+      <div class="month">{{ event.start_datetime|date:"M" }}</div>
+    </div>
+
+    <!-- Top-right badges -->
+    <div class="event-card-badges">
+      {% if event.event_type == 'free' %}
+      <span class="ecard-badge free">FREE</span>
+      {% endif %}
+      {% if event.privacy == 'public' %}
+      <span class="ecard-badge pub">Public</span>
+      {% elif event.privacy == 'private' %}
+      <span class="ecard-badge priv">Private</span>
+      {% endif %}
+    </div>
+  </div>
+
+  <!-- Body -->
+  <div class="event-card-body">
+    {% if event.category %}
+    <div class="event-card-category">{{ event.category.name }}</div>
+    {% endif %}
+    <div class="event-card-title">{{ event.title }}</div>
+
+    <div class="event-card-info">
+      <div class="event-card-info-row">
+        <i data-lucide="clock" width="12" height="12"></i>
+        <span>{{ event.start_datetime|date:"D, M j · g:i A" }}</span>
+      </div>
+      {% if event.location_name %}
+      <div class="event-card-info-row">
+        <i data-lucide="map-pin" width="12" height="12"></i>
+        <span class="truncate">{{ event.location_name|truncatechars:38 }}</span>
+      </div>
+      {% elif event.is_online %}
+      <div class="event-card-info-row">
+        <i data-lucide="video" width="12" height="12"></i>
+        <span>Online Event</span>
+      </div>
+      {% endif %}
+    </div>
+
+    {% if event.capacity %}
+    <div class="event-card-capacity">
+      <div class="event-card-capacity-bar">
+        <div class="event-card-capacity-fill" style="width:{% widthratio event.participant_count event.capacity 100 %}%;"></div>
+      </div>
+      <span class="event-card-capacity-label">{{ event.participant_count }}/{{ event.capacity }}</span>
+    </div>
+    {% endif %}
+
+    <div class="event-card-footer">
+      <div class="event-card-host">
+        {% if event.host.profile.avatar %}
+        <img src="{{ event.host.profile.avatar.url }}" class="avatar avatar-xs" alt="{{ event.host.username }}">
+        {% else %}
+        <div class="avatar-placeholder avatar-xs" style="font-size:10px;">{{ event.host.username|first|upper }}</div>
+        {% endif %}
+        <span>{{ event.host.username }}</span>
+      </div>
+      <div class="event-card-actions" onclick="event.stopPropagation()">
+        {% if user.is_authenticated %}
+        <button class="event-action-btn {% if event.user_liked %}active{% endif %}"
+          onclick="likeEvent({{ event.pk }}, this)" title="Like">
+          <i data-lucide="heart" width="13" height="13"></i>
+          {% if event.like_count %}<span class="eaction-count">{{ event.like_count }}</span>{% endif %}
+        </button>
+        <button class="event-action-btn {% if event.user_saved %}active{% endif %}"
+          onclick="saveEvent({{ event.pk }}, this)" title="Save">
+          <i data-lucide="bookmark" width="13" height="13"></i>
+        </button>
+        <button class="btn-join {% if event.user_joined %}joined{% endif %}"
+          onclick="{% if event.user_joined %}window.location='/events/{{ event.pk }}/'{% else %}joinEvent({{ event.pk }}, this){% endif %}">
+          {% if event.user_joined %}
+          <i data-lucide="check" width="12" height="12"></i> Joined
+          {% else %}Join{% endif %}
+        </button>
+        {% else %}
+        <a href="/accounts/login/" class="btn-join" onclick="event.stopPropagation()">Join</a>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+</div>

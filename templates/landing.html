@@ -1,0 +1,505 @@
+{% extends 'base.html' %}
+{% block title %}KIPAS — Connect. Explore. Experience.{% endblock %}
+{% block main_attrs %}style="padding:0;"{% endblock %}
+
+{% block content %}
+
+<!-- ═══════════════════════════════════════
+     HERO
+═══════════════════════════════════════ -->
+<section class="landing-hero">
+  <div class="landing-hero-bg">
+    <div class="hero-orb hero-orb-1"></div>
+    <div class="hero-orb hero-orb-2"></div>
+    <div class="hero-orb hero-orb-3"></div>
+    <div class="hero-grid-overlay"></div>
+  </div>
+
+  <!-- Floating event cards decoration -->
+  <div class="hero-float-cards" aria-hidden="true">
+    <div class="hero-float-card hfc-1">
+      <div class="hfc-img" style="background:linear-gradient(135deg,#5B2D8E,#FF6B35);"></div>
+      <div class="hfc-body">
+        <div class="hfc-title">Jazz Night at the Park</div>
+        <div class="hfc-meta"><span class="badge-dot green"></span> 42 going</div>
+      </div>
+    </div>
+    <div class="hero-float-card hfc-2">
+      <div class="hfc-img" style="background:linear-gradient(135deg,#0561f5,#40FFA7);"></div>
+      <div class="hfc-body">
+        <div class="hfc-title">Tech Startup Pitch</div>
+        <div class="hfc-meta"><span class="badge-dot green"></span> 128 going</div>
+      </div>
+    </div>
+    <div class="hero-float-card hfc-3">
+      <div class="hfc-img" style="background:linear-gradient(135deg,#FF6B35,#FFD700);"></div>
+      <div class="hfc-body">
+        <div class="hfc-title">Street Photography Walk</div>
+        <div class="hfc-meta"><span class="badge-dot amber"></span> 18 going</div>
+      </div>
+    </div>
+    <div class="hero-float-card hfc-4">
+      <div class="hfc-img" style="background:linear-gradient(135deg,#40FFA7,#0561f5);"></div>
+      <div class="hfc-body">
+        <div class="hfc-title">Community Yoga</div>
+        <div class="hfc-meta"><span class="badge-dot green"></span> FREE</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="landing-container">
+    <div class="hero-content">
+      <div class="hero-badge">
+        <i data-lucide="zap" width="14" height="14"></i>
+        Live now in {{ stats.total_cities|default:"50" }}+ cities
+      </div>
+      <h1 class="hero-title">
+        Find your people.<br>
+        <span class="hero-title-accent">Live every moment.</span>
+      </h1>
+      <p class="hero-subtitle">
+        KIPAS connects you to thousands of events happening right now — concerts, workshops, meetups, adventures, and everything in between.
+      </p>
+      <div class="hero-actions">
+        <a href="/accounts/register/" class="btn-hero-primary">
+          <i data-lucide="sparkles" width="18" height="18"></i>
+          Get Started Free
+        </a>
+        <a href="/events/map/" class="btn-hero-secondary">
+          <i data-lucide="map" width="18" height="18"></i>
+          Explore the Map
+        </a>
+      </div>
+      <div class="hero-social-proof">
+        <div class="hero-avatars">
+          <div class="hero-avatar" style="background:linear-gradient(135deg,#40FFA7,#0561f5);">A</div>
+          <div class="hero-avatar" style="background:linear-gradient(135deg,#FF6B35,#FFD700);">M</div>
+          <div class="hero-avatar" style="background:linear-gradient(135deg,#5B2D8E,#FF6B35);">S</div>
+          <div class="hero-avatar" style="background:linear-gradient(135deg,#0561f5,#40FFA7);">K</div>
+          <div class="hero-avatar" style="background:linear-gradient(135deg,#FFD700,#FF6B35);">R</div>
+        </div>
+        <div class="hero-proof-text">
+          <strong>{{ stats.total_users|default:"1,200" }}+</strong> people already on KIPAS
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="hero-wave">
+    <svg viewBox="0 0 1440 60" fill="none" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="none">
+      <path d="M0 60 L0 30 Q360 0 720 30 Q1080 60 1440 20 L1440 60 Z" fill="var(--color-bg)"/>
+    </svg>
+  </div>
+</section>
+
+<!-- ═══════════════════════════════════════
+     STATS
+═══════════════════════════════════════ -->
+<section class="landing-stats">
+  <div class="landing-container">
+    <div class="stats-grid">
+      <div class="stat-item">
+        <div class="stat-number" data-target="{{ stats.total_events|default:0 }}">0</div>
+        <div class="stat-label">Active Events</div>
+      </div>
+      <div class="stat-item">
+        <div class="stat-number" data-target="{{ stats.total_users|default:0 }}">0</div>
+        <div class="stat-label">Community Members</div>
+      </div>
+      <div class="stat-item">
+        <div class="stat-number" data-target="{{ stats.total_cities|default:0 }}">0</div>
+        <div class="stat-label">Cities Covered</div>
+      </div>
+      <div class="stat-item">
+        <div class="stat-number" data-target="{{ stats.total_categories|default:0 }}">0</div>
+        <div class="stat-label">Event Categories</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════════════════════════════════
+     CATEGORIES
+═══════════════════════════════════════ -->
+<section class="landing-section">
+  <div class="landing-container">
+    <div class="section-header">
+      <div class="section-eyebrow">Discover</div>
+      <h2 class="section-title">Events for every interest</h2>
+      <p class="section-sub">From adrenaline to zen — find your thing</p>
+    </div>
+    <div class="landing-categories-grid">
+      {% for cat in categories %}
+      <a href="/search/?category={{ cat.slug }}" class="landing-cat-card">
+        <div class="landing-cat-icon">{{ cat.icon|default:"🎯" }}</div>
+        <div class="landing-cat-name">{{ cat.name }}</div>
+        <div class="landing-cat-count">{{ cat.event_count }} event{{ cat.event_count|pluralize }}</div>
+      </a>
+      {% empty %}
+      {% for item in "🎵🏃‍♂️📸🎨🍕💻🌿🎭🧘🎪🏕️🎲"|make_list %}
+      <div class="landing-cat-card">
+        <div class="landing-cat-icon">{{ item }}</div>
+      </div>
+      {% endfor %}
+      {% endfor %}
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════════════════════════════════
+     FEATURED EVENTS
+═══════════════════════════════════════ -->
+<section class="landing-section" style="background:var(--color-surface-raised);">
+  <div class="landing-container">
+    <div class="section-header">
+      <div class="section-eyebrow">Trending</div>
+      <h2 class="section-title">Happening this week</h2>
+      <p class="section-sub">The most popular events people are talking about</p>
+    </div>
+    <div class="landing-events-grid">
+      {% for event in featured_events %}
+      <a href="/events/{{ event.pk }}/" class="landing-event-card">
+        <div class="landing-event-img">
+          {% if event.cover_image %}
+          <img src="{{ event.cover_image.url }}" alt="{{ event.title }}">
+          {% else %}
+          <div class="landing-event-img-placeholder">{{ event.category.icon|default:"🎯" }}</div>
+          {% endif %}
+          {% if event.event_type == 'free' %}
+          <span class="landing-event-badge free">FREE</span>
+          {% endif %}
+          {% if event.privacy == 'public' %}
+          <span class="landing-event-badge public">Public</span>
+          {% endif %}
+        </div>
+        <div class="landing-event-body">
+          <div class="landing-event-category">{{ event.category.name|default:"Event" }}</div>
+          <div class="landing-event-title">{{ event.title }}</div>
+          <div class="landing-event-meta">
+            <i data-lucide="calendar" width="12" height="12"></i>
+            {{ event.start_datetime|date:"M j, g:i A" }}
+          </div>
+          {% if event.location_name %}
+          <div class="landing-event-meta">
+            <i data-lucide="map-pin" width="12" height="12"></i>
+            {{ event.location_name|truncatechars:32 }}
+          </div>
+          {% endif %}
+          <div class="landing-event-footer">
+            {% if event.host.profile.avatar %}
+            <img src="{{ event.host.profile.avatar.url }}" class="landing-event-host-avatar" alt="">
+            {% else %}
+            <div class="landing-event-host-avatar landing-event-host-placeholder">{{ event.host.username|first|upper }}</div>
+            {% endif %}
+            <span style="font-size:12px;color:var(--color-text-muted);">by {{ event.host.username }}</span>
+            <span class="landing-event-likes">
+              <i data-lucide="heart" width="12" height="12"></i>
+              {{ event.like_count|default:0 }}
+            </span>
+          </div>
+        </div>
+      </a>
+      {% empty %}
+      <div style="grid-column:1/-1;text-align:center;padding:var(--space-8);color:var(--color-text-muted);">
+        No events yet. <a href="/accounts/register/" style="color:var(--color-primary);">Be the first to create one!</a>
+      </div>
+      {% endfor %}
+    </div>
+    <div style="text-align:center;margin-top:var(--space-6);">
+      <a href="/search/" class="btn-hero-secondary">
+        <i data-lucide="search" width="16" height="16"></i>
+        Browse all events
+      </a>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════════════════════════════════
+     HOW IT WORKS
+═══════════════════════════════════════ -->
+<section class="landing-section">
+  <div class="landing-container">
+    <div class="section-header">
+      <div class="section-eyebrow">Simple</div>
+      <h2 class="section-title">Three steps to your next experience</h2>
+    </div>
+    <div class="hiw-grid">
+      <div class="hiw-step">
+        <div class="hiw-step-num">1</div>
+        <div class="hiw-icon-wrap">
+          <i data-lucide="user-plus" width="28" height="28" style="color:var(--color-primary);"></i>
+        </div>
+        <h3 class="hiw-title">Create your profile</h3>
+        <p class="hiw-desc">Sign up in seconds. Add your interests so we can surface events that actually matter to you.</p>
+      </div>
+      <div class="hiw-connector"><i data-lucide="arrow-right" width="20" height="20" style="color:var(--color-text-muted);"></i></div>
+      <div class="hiw-step">
+        <div class="hiw-step-num">2</div>
+        <div class="hiw-icon-wrap">
+          <i data-lucide="search" width="28" height="28" style="color:var(--color-primary);"></i>
+        </div>
+        <h3 class="hiw-title">Discover events</h3>
+        <p class="hiw-desc">Browse by category, explore the live map, or search by keyword, city, or vibe.</p>
+      </div>
+      <div class="hiw-connector"><i data-lucide="arrow-right" width="20" height="20" style="color:var(--color-text-muted);"></i></div>
+      <div class="hiw-step">
+        <div class="hiw-step-num">3</div>
+        <div class="hiw-icon-wrap">
+          <i data-lucide="check-circle" width="28" height="28" style="color:var(--color-primary);"></i>
+        </div>
+        <h3 class="hiw-title">Join and connect</h3>
+        <p class="hiw-desc">RSVP with one tap. Chat with attendees, invite friends, and make every event unforgettable.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════════════════════════════════
+     FEATURE HIGHLIGHTS
+═══════════════════════════════════════ -->
+<section class="landing-section" style="background:var(--color-surface-raised);">
+  <div class="landing-container">
+    <div class="features-split">
+      <div class="features-text">
+        <div class="section-eyebrow">Built different</div>
+        <h2 class="section-title" style="text-align:left;">Everything you need, nothing you don't</h2>
+        <div class="feature-list">
+          <div class="feature-item">
+            <div class="feature-icon-sm"><i data-lucide="map" width="16" height="16"></i></div>
+            <div>
+              <strong>Live event map</strong>
+              <p>See events happening around you in real-time. Filter by type, date, and radius.</p>
+            </div>
+          </div>
+          <div class="feature-item">
+            <div class="feature-icon-sm"><i data-lucide="message-circle" width="16" height="16"></i></div>
+            <div>
+              <strong>Event chat rooms</strong>
+              <p>Every event has a live chat. Coordinate, hype, or just say hi to fellow attendees.</p>
+            </div>
+          </div>
+          <div class="feature-item">
+            <div class="feature-icon-sm"><i data-lucide="users" width="16" height="16"></i></div>
+            <div>
+              <strong>Friend network</strong>
+              <p>Follow friends, see what they're attending, and discover events together.</p>
+            </div>
+          </div>
+          <div class="feature-item">
+            <div class="feature-icon-sm"><i data-lucide="award" width="16" height="16"></i></div>
+            <div>
+              <strong>Badges &amp; XP</strong>
+              <p>Level up as you explore. Earn badges for hosting, exploring, and connecting.</p>
+            </div>
+          </div>
+        </div>
+        <a href="/accounts/register/" class="btn-hero-primary" style="margin-top:var(--space-5);display:inline-flex;">
+          Start for free
+          <i data-lucide="arrow-right" width="16" height="16"></i>
+        </a>
+      </div>
+      <div class="features-visual">
+        <div class="features-mockup">
+          <div class="fmock-header">
+            <div class="fmock-dot" style="background:#FF5F56;"></div>
+            <div class="fmock-dot" style="background:#FFBD2E;"></div>
+            <div class="fmock-dot" style="background:#27C93F;"></div>
+            <div style="flex:1;text-align:center;font-size:11px;color:var(--color-text-muted);">KIPAS</div>
+          </div>
+          <div id="landing-minimap" style="height:200px;border-radius:0 0 var(--radius-lg) var(--radius-lg);overflow:hidden;"></div>
+          <div class="fmock-cards">
+            <div class="fmock-event-row">
+              <div class="fmock-color" style="background:linear-gradient(135deg,#40FFA7,#0561f5);"></div>
+              <div class="fmock-info">
+                <div class="fmock-title">Tech Meetup 2026</div>
+                <div class="fmock-sub">Tonight · 89 going</div>
+              </div>
+              <div class="fmock-join">Join</div>
+            </div>
+            <div class="fmock-event-row">
+              <div class="fmock-color" style="background:linear-gradient(135deg,#FF6B35,#FFD700);"></div>
+              <div class="fmock-info">
+                <div class="fmock-title">Sunset Yoga</div>
+                <div class="fmock-sub">Tomorrow · FREE</div>
+              </div>
+              <div class="fmock-join">Join</div>
+            </div>
+            <div class="fmock-event-row">
+              <div class="fmock-color" style="background:linear-gradient(135deg,#5B2D8E,#FF6B35);"></div>
+              <div class="fmock-info">
+                <div class="fmock-title">Jazz in the Garden</div>
+                <div class="fmock-sub">Sat · 34 going</div>
+              </div>
+              <div class="fmock-join">Join</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════════════════════════════════
+     TESTIMONIALS
+═══════════════════════════════════════ -->
+<section class="landing-section">
+  <div class="landing-container">
+    <div class="section-header">
+      <div class="section-eyebrow">Community</div>
+      <h2 class="section-title">People love KIPAS</h2>
+    </div>
+    <div class="testimonials-grid">
+      <div class="testimonial-card">
+        <div class="testimonial-stars">★★★★★</div>
+        <p class="testimonial-text">"I moved to a new city and KIPAS helped me find my people within two weeks. I've been to 12 events and made real friends."</p>
+        <div class="testimonial-author">
+          <div class="testimonial-avatar" style="background:linear-gradient(135deg,#40FFA7,#0561f5);">S</div>
+          <div>
+            <div class="testimonial-name">Sarah K.</div>
+            <div class="testimonial-location">Berlin, Germany</div>
+          </div>
+        </div>
+      </div>
+      <div class="testimonial-card">
+        <div class="testimonial-stars">★★★★★</div>
+        <p class="testimonial-text">"As an event organizer, KIPAS gave me the tools I needed. The chat room, RSVP system, and analytics are brilliant."</p>
+        <div class="testimonial-author">
+          <div class="testimonial-avatar" style="background:linear-gradient(135deg,#FF6B35,#FFD700);">M</div>
+          <div>
+            <div class="testimonial-name">Marco R.</div>
+            <div class="testimonial-location">Milan, Italy</div>
+          </div>
+        </div>
+      </div>
+      <div class="testimonial-card">
+        <div class="testimonial-stars">★★★★★</div>
+        <p class="testimonial-text">"The map feature is incredible. I can see everything happening around me in real-time. It's like having a social radar."</p>
+        <div class="testimonial-author">
+          <div class="testimonial-avatar" style="background:linear-gradient(135deg,#5B2D8E,#FF6B35);">A</div>
+          <div>
+            <div class="testimonial-name">Aiko T.</div>
+            <div class="testimonial-location">Tokyo, Japan</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════════════════════════════════
+     CTA
+═══════════════════════════════════════ -->
+<section class="landing-cta">
+  <div class="landing-container">
+    <div class="cta-inner">
+      <div class="cta-orb cta-orb-1"></div>
+      <div class="cta-orb cta-orb-2"></div>
+      <h2 class="cta-title">Your next favourite memory<br>starts here.</h2>
+      <p class="cta-sub">Join thousands of people discovering and hosting events every day.</p>
+      <div class="cta-actions">
+        <a href="/accounts/register/" class="btn-hero-primary" style="font-size:16px;padding:14px 32px;">
+          <i data-lucide="sparkles" width="18" height="18"></i>
+          Create your free account
+        </a>
+        <a href="/accounts/login/" class="cta-login-link">Already have an account? Sign in →</a>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════════════════════════════════
+     FOOTER
+═══════════════════════════════════════ -->
+<footer class="landing-footer">
+  <div class="landing-container">
+    <div class="footer-grid">
+      <div class="footer-brand">
+        <div class="footer-logo">KIPAS</div>
+        <p class="footer-tagline">Connect. Explore. Experience.</p>
+        <div class="footer-socials">
+          <a href="#" class="footer-social-link" aria-label="Twitter"><i data-lucide="twitter" width="16" height="16"></i></a>
+          <a href="#" class="footer-social-link" aria-label="Instagram"><i data-lucide="instagram" width="16" height="16"></i></a>
+          <a href="#" class="footer-social-link" aria-label="LinkedIn"><i data-lucide="linkedin" width="16" height="16"></i></a>
+        </div>
+      </div>
+      <div class="footer-col">
+        <h5 class="footer-col-title">Product</h5>
+        <a href="/search/" class="footer-link">Browse Events</a>
+        <a href="/events/map/" class="footer-link">Map</a>
+        <a href="/events/create/" class="footer-link">Host an Event</a>
+        <a href="/accounts/register/" class="footer-link">Sign Up</a>
+      </div>
+      <div class="footer-col">
+        <h5 class="footer-col-title">Company</h5>
+        <a href="#" class="footer-link">About</a>
+        <a href="#" class="footer-link">Blog</a>
+        <a href="#" class="footer-link">Careers</a>
+        <a href="#" class="footer-link">Press</a>
+      </div>
+      <div class="footer-col">
+        <h5 class="footer-col-title">Legal</h5>
+        <a href="#" class="footer-link">Privacy Policy</a>
+        <a href="#" class="footer-link">Terms of Service</a>
+        <a href="#" class="footer-link">Cookie Policy</a>
+      </div>
+    </div>
+    <div class="footer-bottom">
+      <span>&copy; 2026 KIPAS. Made with care.</span>
+    </div>
+  </div>
+</footer>
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// Animated stat counters
+function animateCounters() {
+  document.querySelectorAll('.stat-number[data-target]').forEach(el => {
+    const target = parseInt(el.dataset.target) || 0;
+    if (target === 0) { el.textContent = '0'; return; }
+    const duration = 1800;
+    const start = performance.now();
+    function tick(now) {
+      const progress = Math.min((now - start) / duration, 1);
+      const ease = 1 - Math.pow(1 - progress, 3);
+      el.textContent = Math.round(target * ease).toLocaleString();
+      if (progress < 1) requestAnimationFrame(tick);
+    }
+    requestAnimationFrame(tick);
+  });
+}
+
+// Trigger counters when stats section scrolls into view
+const statsSection = document.querySelector('.landing-stats');
+if (statsSection) {
+  const obs = new IntersectionObserver(entries => {
+    if (entries[0].isIntersecting) { animateCounters(); obs.disconnect(); }
+  }, { threshold: 0.4 });
+  obs.observe(statsSection);
+}
+
+// Mini Leaflet map in features section
+document.addEventListener('DOMContentLoaded', () => {
+  if (document.getElementById('landing-minimap') && window.L) {
+    const map = L.map('landing-minimap', {
+      zoomControl: false,
+      scrollWheelZoom: false,
+      dragging: false,
+      touchZoom: false,
+      doubleClickZoom: false,
+    }).setView([51.505, -0.09], 12);
+    L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+      attribution: '', maxZoom: 19
+    }).addTo(map);
+    const pinIcon = L.divIcon({
+      html: '<div style="width:12px;height:12px;background:#40FFA7;border-radius:50%;border:2px solid #fff;box-shadow:0 0 8px #40FFA7;"></div>',
+      iconSize: [12, 12], iconAnchor: [6, 6], className: ''
+    });
+    [[51.51, -0.1], [51.50, -0.08], [51.515, -0.07], [51.505, -0.12]].forEach(pos => {
+      L.marker(pos, { icon: pinIcon }).addTo(map);
+    });
+  }
+});
+</script>
+{% endblock %}

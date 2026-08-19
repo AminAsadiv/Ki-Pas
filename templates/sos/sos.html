@@ -1,0 +1,43 @@
+{% extends 'base.html' %}
+{% block title %}SOS — KIPAS{% endblock %}
+{% block content %}
+<div style="max-width:720px;margin:0 auto;padding:var(--space-5);">
+  <div style="text-align:center;padding:var(--space-6);background:rgba(255,77,109,0.08);border:1px solid rgba(255,77,109,0.3);border-radius:var(--radius-lg);margin-bottom:var(--space-5);">
+    <i data-lucide="alert-triangle" width="48" height="48" style="color:var(--color-danger);display:block;margin:0 auto var(--space-3);"></i>
+    <h2 style="color:var(--color-danger);">Emergency SOS</h2>
+    <p style="color:var(--color-text-muted);font-size:15px;margin-top:var(--space-2);">Activate SOS to alert nearby users and your emergency contacts</p>
+    <button class="btn btn-danger btn-lg" style="margin-top:var(--space-4);" onclick="activateSOS()">
+      <i data-lucide="alert-circle" width="20" height="20"></i> Activate SOS
+    </button>
+  </div>
+  {% if active_sos %}
+  <h3 style="margin-bottom:var(--space-3);">Active SOS Requests Nearby</h3>
+  {% for sos in active_sos %}
+  <div class="card" style="padding:var(--space-4);border-left:3px solid var(--color-danger);margin-bottom:var(--space-3);">
+    <div class="flex items-center gap-3">
+      {% if sos.user.profile.avatar %}<img src="{{ sos.user.profile.avatar.url }}" class="avatar avatar-md">
+      {% else %}<div class="avatar-placeholder avatar-md" style="font-size:16px;">{{ sos.user.username|first|upper }}</div>{% endif %}
+      <div>
+        <div style="font-weight:600;">{{ sos.user.username }}</div>
+        <div style="font-size:13px;color:var(--color-danger);">SOS Active · {{ sos.created_at|timesince }} ago</div>
+        {% if sos.message %}<p style="font-size:13px;color:var(--color-text-muted);margin-top:4px;">{{ sos.message }}</p>{% endif %}
+      </div>
+      <button class="btn btn-danger btn-sm" style="margin-left:auto;">I Can Help</button>
+    </div>
+  </div>
+  {% endfor %}
+  {% endif %}
+</div>
+{% endblock %}
+{% block extra_js %}<script>
+function activateSOS() {
+  if (!confirm('Activate SOS? This will alert nearby users and your emergency contacts.')) return;
+  navigator.geolocation.getCurrentPosition(pos => {
+    fetch('/api/v1/sos/', {
+      method: 'POST',
+      headers: {'Content-Type':'application/json','X-CSRFToken':getCsrf()},
+      body: JSON.stringify({latitude:pos.coords.latitude,longitude:pos.coords.longitude}),
+    }).then(() => showToast('SOS activated! Help is on the way.'));
+  }, () => showToast('Location access required for SOS', 'error'));
+}
+</script>{% endblock %}

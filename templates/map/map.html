@@ -1,0 +1,494 @@
+{% extends 'base.html' %}
+{% block title %}Map — KIPAS{% endblock %}
+{% block main_attrs %}style=""{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="/static/css/map.css">
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.css">
+<link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.Default.css">
+{% endblock %}
+
+{% block content %}
+<div class="map-page">
+
+  <!-- ═══ LEFT FILTER PANEL ═══ -->
+  <div class="map-left-panel" id="left-panel">
+    <div class="map-panel-header">
+      <div>
+        <h3>Explore Events</h3>
+        <p style="font-size:12px;color:var(--color-text-muted);margin-top:3px;">
+          <span id="event-count-label" style="color:var(--color-primary);font-weight:700;">—</span> events found
+        </p>
+      </div>
+    </div>
+    <div class="map-panel-body">
+
+      <!-- View toggle -->
+      <div style="display:flex;gap:var(--space-2);margin-bottom:var(--space-4);">
+        <button class="btn btn-primary btn-sm" id="btn-map-view" onclick="setView('map')" style="flex:1;justify-content:center;">
+          <i data-lucide="map" width="13" height="13"></i> Map
+        </button>
+        <button class="btn btn-surface btn-sm" id="btn-list-view" onclick="setView('list')" style="flex:1;justify-content:center;">
+          <i data-lucide="list" width="13" height="13"></i> List
+        </button>
+      </div>
+
+      <!-- Category filter -->
+      <div class="form-group" style="margin-bottom:var(--space-4);">
+        <label class="form-label" style="margin-bottom:var(--space-2);">Categories</label>
+        <div style="display:flex;flex-direction:column;gap:4px;max-height:280px;overflow-y:auto;scrollbar-width:thin;">
+          <button class="filter-pill active" data-cat="" onclick="filterByCategory('', this)">
+            🗺️ All Categories
+          </button>
+          {% for cat in categories %}
+          <button class="filter-pill" data-cat="{{ cat.slug }}" onclick="filterByCategory('{{ cat.slug }}', this)">
+            {% if cat.slug == 'sports' %}⚽{% elif cat.slug == 'entertainment' %}🎭{% elif cat.slug == 'education' %}📚{% elif cat.slug == 'technology' %}💻{% elif cat.slug == 'business' %}💼{% elif cat.slug == 'arts' %}🎨{% elif cat.slug == 'food-drinks' %}🍕{% elif cat.slug == 'travel-outdoors' %}✈️{% elif cat.slug == 'community' %}🤝{% elif cat.slug == 'lifestyle' %}🧘{% elif cat.slug == 'social' %}👥{% elif cat.slug == 'health-wellness' %}💚{% elif cat.slug == 'music' %}🎵{% elif cat.slug == 'games' %}🎮{% elif cat.slug == 'film-media' %}🎬{% else %}📍{% endif %}
+            {{ cat.name }}
+          </button>
+          {% endfor %}
+        </div>
+      </div>
+
+      <!-- Date filter -->
+      <div class="form-group" style="margin-bottom:var(--space-4);">
+        <label class="form-label">When</label>
+        <div style="display:flex;flex-direction:column;gap:4px;">
+          <button class="filter-pill active" data-when="any" onclick="filterByDate('any', this)">📅 Any time</button>
+          <button class="filter-pill" data-when="today" onclick="filterByDate('today', this)">Today</button>
+          <button class="filter-pill" data-when="tomorrow" onclick="filterByDate('tomorrow', this)">Tomorrow</button>
+          <button class="filter-pill" data-when="week" onclick="filterByDate('week', this)">This week</button>
+          <button class="filter-pill" data-when="weekend" onclick="filterByDate('weekend', this)">This weekend</button>
+        </div>
+      </div>
+
+      <!-- Price filter -->
+      <div class="form-group" style="margin-bottom:var(--space-4);">
+        <label class="form-label">Price</label>
+        <div style="display:flex;gap:var(--space-2);">
+          <button class="filter-pill" data-price="free" onclick="togglePrice('free', this)">Free</button>
+          <button class="filter-pill" data-price="paid" onclick="togglePrice('paid', this)">Paid</button>
+        </div>
+      </div>
+
+      <!-- Radius -->
+      <div class="form-group" style="margin-bottom:var(--space-4);">
+        <label class="form-label">Radius: <span id="radius-label" style="color:var(--color-primary);font-weight:700;">5 km</span></label>
+        <input type="range" min="1" max="50" value="5" style="width:100%;accent-color:var(--color-primary);" id="radius-slider"
+          oninput="document.getElementById('radius-label').textContent=this.value+' km'">
+      </div>
+
+      <button class="btn btn-primary" style="width:100%;justify-content:center;" onclick="applyFilters()">
+        <i data-lucide="filter" width="14" height="14"></i> Apply Filters
+      </button>
+      <button class="btn btn-surface" style="width:100%;justify-content:center;margin-top:var(--space-2);" onclick="resetFilters()">
+        <i data-lucide="rotate-ccw" width="14" height="14"></i> Reset
+      </button>
+      {% if user.is_authenticated %}
+      <a href="/events/create/" class="btn btn-outline" style="width:100%;justify-content:center;margin-top:var(--space-2);">
+        <i data-lucide="plus-circle" width="14" height="14"></i> Create Event Here
+      </a>
+      {% endif %}
+
+    </div>
+  </div>
+
+  <!-- ═══ MAP AREA ═══ -->
+  <div style="position:relative;flex:1;overflow:hidden;">
+
+    <div id="map"></div>
+
+    <!-- Search overlay -->
+    <div class="map-search-overlay">
+      <div class="map-search-box">
+        <i data-lucide="search" width="16" height="16" style="color:var(--color-text-muted);flex-shrink:0;"></i>
+        <input type="text" id="map-search-input" placeholder="Search city, area, or event…"
+          onkeydown="if(event.key==='Enter')searchMap()"
+          oninput="handleSearchInput(this.value)">
+        <button class="btn btn-primary btn-sm" onclick="searchMap()">Go</button>
+      </div>
+      <div id="search-suggestions" style="display:none;position:absolute;top:100%;left:0;right:0;background:var(--color-surface);border:1px solid var(--color-border);border-top:none;border-radius:0 0 var(--radius-md) var(--radius-md);z-index:20;overflow:hidden;"></div>
+      <!-- Category chips -->
+      <div class="filter-pills" id="category-pills">
+        <button class="filter-pill active" data-cat="" onclick="filterByCategory('', this)">🗺️ All</button>
+        {% for cat in categories|slice:":9" %}
+        <button class="filter-pill" data-cat="{{ cat.slug }}" onclick="filterByCategory('{{ cat.slug }}', this)">
+          {% if cat.slug == 'sports' %}⚽{% elif cat.slug == 'entertainment' %}🎭{% elif cat.slug == 'education' %}📚{% elif cat.slug == 'technology' %}💻{% elif cat.slug == 'arts' %}🎨{% elif cat.slug == 'food-drinks' %}🍕{% elif cat.slug == 'music' %}🎵{% elif cat.slug == 'games' %}🎮{% elif cat.slug == 'community' %}🤝{% else %}📍{% endif %}
+          {{ cat.name }}
+        </button>
+        {% endfor %}
+      </div>
+    </div>
+
+    <!-- Floating controls -->
+    <div style="position:absolute;right:var(--space-4);bottom:var(--space-8);z-index:10;display:flex;flex-direction:column;gap:var(--space-2);">
+      <button class="map-float-btn" onclick="locateUser()" title="My location"><i data-lucide="navigation" width="16" height="16"></i></button>
+      <button class="map-float-btn" onclick="kipasMap.zoomIn()" title="Zoom in"><i data-lucide="plus" width="16" height="16"></i></button>
+      <button class="map-float-btn" onclick="kipasMap.zoomOut()" title="Zoom out"><i data-lucide="minus" width="16" height="16"></i></button>
+    </div>
+
+    <!-- List panel (overlays left of map) -->
+    <div class="map-event-list-panel" id="list-panel">
+      <div class="map-list-header">
+        <span style="font-size:14px;font-weight:700;"><span id="list-count">0</span> Events</span>
+        <button class="btn btn-surface btn-sm" onclick="setView('map')"><i data-lucide="x" width="13" height="13"></i> Close</button>
+      </div>
+      <div class="map-list-items" id="map-list-items">
+        <div style="padding:var(--space-6);text-align:center;color:var(--color-text-muted);">Loading…</div>
+      </div>
+    </div>
+
+    <!-- Event detail panel -->
+    <div class="map-event-panel" id="map-event-panel">
+      <button class="map-event-close" onclick="closeEventPanel()">
+        <i data-lucide="x" width="14" height="14"></i>
+      </button>
+    </div>
+
+    <!-- Context menu -->
+    <div id="map-ctx-menu" style="display:none;"></div>
+
+  </div>
+</div>
+
+<style>
+@keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+.map-float-btn {
+  width: 40px; height: 40px; border-radius: 50%;
+  background: var(--color-surface); border: 1px solid var(--color-border);
+  display: flex; align-items: center; justify-content: center;
+  cursor: pointer; color: var(--color-text); box-shadow: var(--shadow-md);
+  transition: var(--transition);
+}
+.map-float-btn:hover { background: var(--color-primary); color: #050761; border-color: var(--color-primary); }
+</style>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://unpkg.com/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js"></script>
+<script>
+let kipasMap, markersLayer, userMarker, selectedEventId;
+let allEvents = [];
+let activeFilters = { category: '', when: 'any', price: '' };
+let currentView = 'map';
+let searchTimeout;
+
+const catEmoji = { sports:'⚽', entertainment:'🎭', education:'📚', technology:'💻', business:'💼', arts:'🎨', 'food-drinks':'🍕', 'travel-outdoors':'✈️', community:'🤝', lifestyle:'🧘', social:'👥', 'health-wellness':'💚', music:'🎵', games:'🎮', 'film-media':'🎬', networking:'🤝' };
+
+document.addEventListener('DOMContentLoaded', initMap);
+
+function initMap() {
+  const iLat = parseFloat('{{ initial_lat }}') || 35.6892;
+  const iLng = parseFloat('{{ initial_lng }}') || 51.3890;
+  const zoom = {{ initial_lat|yesno:"15,13" }};
+
+  kipasMap = L.map('map', { center: [iLat, iLng], zoom, zoomControl: false });
+
+  L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+    attribution: '© OpenStreetMap contributors © CARTO',
+    subdomains: 'abcd', maxZoom: 19,
+  }).addTo(kipasMap);
+
+  markersLayer = L.markerClusterGroup({
+    iconCreateFunction: c => L.divIcon({
+      html: `<div style="width:40px;height:40px;display:flex;align-items:center;justify-content:center;border-radius:50%;background:#050761;border:2px solid #40FFA7;color:#40FFA7;font-weight:800;font-size:14px;box-shadow:0 4px 16px rgba(64,255,167,0.3);">${c.getChildCount()}</div>`,
+      className: '', iconSize: [40, 40],
+    }),
+    showCoverageOnHover: false, zoomToBoundsOnClick: true, spiderfyOnMaxZoom: true,
+    disableClusteringAtZoom: 17, maxClusterRadius: 60,
+  });
+  kipasMap.addLayer(markersLayer);
+
+  kipasMap.on('contextmenu', e => showContextMenu(e.latlng, e.containerPoint));
+  let moveTimer;
+  kipasMap.on('moveend', () => { clearTimeout(moveTimer); moveTimer = setTimeout(loadEvents, 400); });
+
+  locateUser();
+  loadEvents();
+}
+
+function locateUser() {
+  if (!navigator.geolocation) return;
+  navigator.geolocation.getCurrentPosition(pos => {
+    const { latitude: lat, longitude: lng } = pos.coords;
+    {% if not initial_lat %}kipasMap.setView([lat, lng], 13);{% endif %}
+    if (userMarker) userMarker.remove();
+    userMarker = L.marker([lat, lng], {
+      icon: L.divIcon({ html: '<div class="user-location-marker"></div>', className: '', iconSize: [20,20], iconAnchor: [10,10] }),
+      zIndexOffset: 1000,
+    }).addTo(kipasMap).bindTooltip('You', { direction: 'top' });
+  }, null, { timeout: 5000 });
+}
+
+function loadEvents() {
+  const b = kipasMap.getBounds();
+  const params = new URLSearchParams({
+    sw_lat: b.getSouthWest().lat, sw_lng: b.getSouthWest().lng,
+    ne_lat: b.getNorthEast().lat, ne_lng: b.getNorthEast().lng,
+  });
+  if (activeFilters.category) params.set('category', activeFilters.category);
+
+  fetch(`/api/v1/map/events/?${params}`)
+    .then(r => r.json())
+    .then(data => {
+      allEvents = data.events || [];
+      const filtered = clientFilter(allEvents);
+      document.getElementById('event-count-label').textContent = filtered.length;
+      document.getElementById('list-count').textContent = filtered.length;
+      renderMarkers(filtered);
+      if (currentView === 'list') renderList(filtered);
+    });
+}
+
+function clientFilter(events) {
+  const now = new Date();
+  return events.filter(e => {
+    const s = new Date(e.start_datetime);
+    if (activeFilters.when === 'today' && s.toDateString() !== now.toDateString()) return false;
+    if (activeFilters.when === 'tomorrow') {
+      const tom = new Date(now); tom.setDate(tom.getDate()+1);
+      if (s.toDateString() !== tom.toDateString()) return false;
+    }
+    if (activeFilters.when === 'week') {
+      const end = new Date(now); end.setDate(end.getDate()+7);
+      if (s < now || s > end) return false;
+    }
+    if (activeFilters.when === 'weekend' && s.getDay()!==0 && s.getDay()!==6) return false;
+    if (activeFilters.price === 'free' && e.event_type !== 'free') return false;
+    if (activeFilters.price === 'paid' && e.event_type === 'free') return false;
+    return true;
+  });
+}
+
+// ── Markers ──
+function mkIcon(slug, sel=false) {
+  const e = catEmoji[slug] || '📍';
+  const bg = sel ? '#40FFA7' : '#050761';
+  const bc = sel ? '#fff' : '#40FFA7';
+  const sh = sel ? '0 4px 20px rgba(64,255,167,0.7)' : '0 4px 12px rgba(64,255,167,0.3)';
+  return L.divIcon({
+    html: `<div class="kipas-marker"><div class="kipas-marker-circle" style="background:${bg};border-color:${bc};box-shadow:${sh};"><span style="font-size:14px;line-height:1;">${e}</span></div><div class="kipas-marker-stem"></div></div>`,
+    className: '', iconSize: [40, 48], iconAnchor: [20, 48],
+  });
+}
+
+function renderMarkers(events) {
+  markersLayer.clearLayers();
+  events.forEach(ev => {
+    const m = L.marker([ev.latitude, ev.longitude], { icon: mkIcon(ev.category_slug, ev.id === selectedEventId) });
+    m.eventData = ev;
+    m.on('click', () => {
+      selectedEventId = ev.id;
+      renderMarkers(clientFilter(allEvents));
+      showEventPanel(ev);
+    });
+    markersLayer.addLayer(m);
+  });
+}
+
+// ── List view ──
+function setView(v) {
+  currentView = v;
+  const lp = document.getElementById('list-panel');
+  const mb = document.getElementById('btn-map-view');
+  const lb = document.getElementById('btn-list-view');
+  if (v === 'list') {
+    lp.classList.add('visible');
+    mb.className = mb.className.replace('btn-primary','btn-surface');
+    lb.className = lb.className.replace('btn-surface','btn-primary');
+    renderList(clientFilter(allEvents));
+  } else {
+    lp.classList.remove('visible');
+    mb.className = mb.className.replace('btn-surface','btn-primary');
+    lb.className = lb.className.replace('btn-primary','btn-surface');
+  }
+}
+
+function renderList(events) {
+  const c = document.getElementById('map-list-items');
+  if (!events.length) {
+    c.innerHTML = '<div style="padding:var(--space-6);text-align:center;color:var(--color-text-muted);font-size:14px;">No events in this area</div>';
+    return;
+  }
+  c.innerHTML = events.map(e => `
+    <div class="map-list-item${e.id===selectedEventId?' active':''}" onclick="flyTo(${e.id},${e.latitude},${e.longitude})">
+      <div class="map-list-thumb">${e.cover_image?`<img src="${e.cover_image}" style="width:100%;height:100%;object-fit:cover;border-radius:var(--radius-sm);">`:(catEmoji[e.category_slug]||'📍')}</div>
+      <div class="map-list-info">
+        <div class="map-list-title">${esc(e.title)}</div>
+        <div class="map-list-meta">
+          <span>📅 ${new Date(e.start_datetime).toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric'})}</span>
+          <span>📍 ${esc(e.location_name||e.address||'Location TBD')}</span>
+          <span><span class="badge badge-${e.event_type==='free'?'primary':'surface'}" style="font-size:10px;">${e.event_type==='free'?'FREE':'Paid'}</span> · 👥 ${e.participant_count||0}</span>
+        </div>
+      </div>
+    </div>`).join('');
+}
+
+function flyTo(id, lat, lng) {
+  selectedEventId = id;
+  kipasMap.setView([lat, lng], 15);
+  const ev = allEvents.find(e => e.id === id);
+  if (ev) { renderMarkers(clientFilter(allEvents)); showEventPanel(ev); }
+  document.querySelectorAll('.map-list-item').forEach(el => el.classList.remove('active'));
+  event.currentTarget?.classList.add('active');
+}
+
+// ── Event panel ──
+function showEventPanel(ev) {
+  const panel = document.getElementById('map-event-panel');
+  const d = new Date(ev.start_datetime);
+  const ds = d.toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric',hour:'2-digit',minute:'2-digit'});
+  const pct = ev.capacity ? Math.min(100, Math.round(ev.participant_count/ev.capacity*100)) : 0;
+
+  panel.innerHTML = `
+    <button class="map-event-close" onclick="closeEventPanel()"><i data-lucide="x" width="14" height="14"></i></button>
+    ${ev.cover_image
+      ? `<img src="${ev.cover_image}" class="map-event-cover" alt="${esc(ev.title)}">`
+      : `<div class="map-event-cover" style="display:flex;align-items:center;justify-content:center;font-size:52px;background:linear-gradient(135deg,#050761,#0a0b2e);">${catEmoji[ev.category_slug]||'📍'}</div>`}
+    <div class="map-event-body">
+      <div style="display:flex;gap:6px;margin-bottom:10px;flex-wrap:wrap;">
+        <span class="badge badge-primary" style="font-size:11px;">${esc(ev.category_name||'Event')}</span>
+        <span class="badge badge-${ev.event_type==='free'?'primary':'surface'}" style="font-size:11px;">${ev.event_type==='free'?'FREE':'Paid'}</span>
+      </div>
+      <h3 style="font-size:17px;font-weight:700;margin-bottom:10px;line-height:1.3;">${esc(ev.title)}</h3>
+      <div style="display:flex;flex-direction:column;gap:6px;font-size:13px;color:var(--color-text-muted);margin-bottom:14px;">
+        <span>📅 ${ds}</span>
+        <span>📍 ${esc(ev.location_name||ev.address||'Location TBD')}</span>
+        <span>👥 ${ev.participant_count||0} going${ev.capacity?` · ${ev.capacity} max`:''}</span>
+      </div>
+      ${ev.capacity?`<div style="margin-bottom:14px;"><div class="capacity-bar"><div class="capacity-fill ${pct>=100?'danger':pct>=80?'warning':''}" style="width:${pct}%;"></div></div><div style="font-size:11px;color:var(--color-text-muted);margin-top:4px;">${pct}% full</div></div>`:''}
+      <div style="display:flex;gap:8px;">
+        <a href="/events/${ev.id}/" class="btn btn-primary btn-sm" style="flex:1;justify-content:center;">View Details</a>
+        <button onclick="joinEventMap(${ev.id},this)" class="btn btn-outline btn-sm">Join</button>
+      </div>
+    </div>`;
+  panel.classList.add('visible');
+  if (window.lucide) lucide.createIcons();
+}
+
+function closeEventPanel() {
+  document.getElementById('map-event-panel').classList.remove('visible');
+  selectedEventId = null;
+  renderMarkers(clientFilter(allEvents));
+}
+
+// ── Filters ──
+function filterByCategory(slug, btn) {
+  activeFilters.category = slug;
+  document.querySelectorAll('.filter-pill[data-cat]').forEach(p => p.classList.toggle('active', p.dataset.cat === slug));
+  loadEvents();
+}
+
+function filterByDate(when, btn) {
+  activeFilters.when = when;
+  document.querySelectorAll('.filter-pill[data-when]').forEach(p => p.classList.toggle('active', p.dataset.when === when));
+  const f = clientFilter(allEvents);
+  document.getElementById('event-count-label').textContent = f.length;
+  document.getElementById('list-count').textContent = f.length;
+  renderMarkers(f);
+  if (currentView === 'list') renderList(f);
+}
+
+function togglePrice(price, btn) {
+  activeFilters.price = activeFilters.price === price ? '' : price;
+  document.querySelectorAll('.filter-pill[data-price]').forEach(p => p.classList.toggle('active', p.dataset.price === activeFilters.price));
+  const f = clientFilter(allEvents);
+  renderMarkers(f);
+  if (currentView === 'list') renderList(f);
+}
+
+function applyFilters() { loadEvents(); closeEventPanel(); }
+function resetFilters() {
+  activeFilters = { category: '', when: 'any', price: '' };
+  document.querySelectorAll('.filter-pill').forEach(p => p.classList.remove('active'));
+  document.querySelector('.filter-pill[data-cat=""]')?.classList.add('active');
+  document.querySelector('.filter-pill[data-when="any"]')?.classList.add('active');
+  loadEvents();
+}
+
+// ── Search ──
+function searchMap() {
+  const q = document.getElementById('map-search-input').value.trim();
+  if (!q) return;
+  document.getElementById('search-suggestions').style.display = 'none';
+  fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(q)}&limit=1`)
+    .then(r => r.json()).then(d => { if (d[0]) kipasMap.setView([parseFloat(d[0].lat), parseFloat(d[0].lon)], 14); });
+}
+
+function handleSearchInput(val) {
+  clearTimeout(searchTimeout);
+  const box = document.getElementById('search-suggestions');
+  if (val.length < 2) { box.style.display = 'none'; return; }
+  const local = allEvents.filter(e => e.title.toLowerCase().includes(val.toLowerCase())).slice(0, 4);
+  if (local.length) {
+    box.style.display = 'block';
+    box.innerHTML = local.map(e => `
+      <div onclick="flyTo(${e.id},${e.latitude},${e.longitude}); document.getElementById('search-suggestions').style.display='none';"
+        style="padding:10px 16px;cursor:pointer;font-size:13px;border-bottom:1px solid var(--color-border);" onmouseover="this.style.background='var(--color-surface-2)'" onmouseout="this.style.background=''">
+        ${catEmoji[e.category_slug]||'📍'} <strong>${esc(e.title)}</strong>
+        <span style="color:var(--color-text-muted);font-size:12px;margin-left:6px;">📍 ${esc(e.location_name||'')}</span>
+      </div>`).join('');
+  } else {
+    searchTimeout = setTimeout(() => {
+      fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(val)}&limit=4`)
+        .then(r => r.json()).then(data => {
+          if (!data.length) { box.style.display = 'none'; return; }
+          box.style.display = 'block';
+          box.innerHTML = data.map(d => `
+            <div onclick="kipasMap.setView([${d.lat},${d.lon}],14);document.getElementById('search-suggestions').style.display='none';document.getElementById('map-search-input').value='${d.display_name.substring(0,50).replace(/'/g,"\\'")}'"
+              style="padding:10px 16px;cursor:pointer;font-size:13px;border-bottom:1px solid var(--color-border);" onmouseover="this.style.background='var(--color-surface-2)'" onmouseout="this.style.background=''">
+              📍 ${esc(d.display_name)}
+            </div>`).join('');
+        });
+    }, 400);
+  }
+}
+
+// ── Context menu ──
+function showContextMenu(latlng, pt) {
+  const m = document.getElementById('map-ctx-menu');
+  m.style.display = 'block'; m.style.left = pt.x+'px'; m.style.top = pt.y+'px'; m.className = 'map-ctx-menu';
+  m.innerHTML = `
+    <div class="map-ctx-item" onclick="createEventHere(${latlng.lat},${latlng.lng})">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg> Create event here
+    </div>
+    <div class="map-ctx-item" onclick="dropPin(${latlng.lat},${latlng.lng})">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg> Drop a pin
+    </div>
+    <div class="map-ctx-item" onclick="hideCtxMenu()">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg> Cancel
+    </div>`;
+  setTimeout(() => document.addEventListener('click', hideCtxMenu, { once: true }), 50);
+}
+
+function hideCtxMenu() { document.getElementById('map-ctx-menu').style.display = 'none'; }
+function createEventHere(lat, lng) { hideCtxMenu(); window.location.href = `/events/create/?lat=${lat}&lng=${lng}`; }
+function dropPin(lat, lng) {
+  hideCtxMenu();
+  L.marker([lat, lng], {
+    icon: L.divIcon({ html: '<div style="width:16px;height:16px;background:#FF6496;border-radius:50%;border:2px solid #fff;box-shadow:0 0 8px rgba(255,100,150,0.7);"></div>', className: '', iconSize:[16,16], iconAnchor:[8,8] })
+  }).addTo(kipasMap).bindPopup(`📍 ${lat.toFixed(5)}, ${lng.toFixed(5)}`).openPopup();
+}
+
+function joinEventMap(id, btn) {
+  const tok = document.cookie.match(/csrftoken=([^;]+)/)?.[1]||'';
+  fetch(`/events/${id}/join/`,{method:'POST',headers:{'X-CSRFToken':tok}})
+    .then(r=>r.json()).then(d=>{
+      if(d.error){alert(d.error);return;}
+      btn.textContent = d.status==='approved'?'Joined!':'Pending';
+      btn.disabled = true; btn.classList.add('btn-primary');
+    }).catch(()=>window.location.href='/accounts/login/');
+}
+
+function esc(s) {
+  return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+// Dismiss search suggestions on outside click
+document.addEventListener('click', e => {
+  if (!e.target.closest('.map-search-box') && !e.target.closest('#search-suggestions'))
+    document.getElementById('search-suggestions').style.display = 'none';
+});
+</script>
+{% endblock %}

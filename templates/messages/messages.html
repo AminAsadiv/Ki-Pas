@@ -1,0 +1,737 @@
+{% extends 'base.html' %}
+{% block title %}{% if active_conversation %}{% if active_conversation.is_group %}{{ active_conversation.name }}{% elif other_user %}{{ other_user.profile.full_name|default:other_user.username }}{% endif %} — {% endif %}Messages — KIPAS{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="/static/css/messages.css">
+{% endblock %}
+
+{% block content %}
+<div class="messages-layout">
+
+  <!-- ══════════════════════════
+       LEFT: conversation list
+  ══════════════════════════ -->
+  <div class="conv-list-panel" id="conv-list-panel">
+
+    <div class="conv-list-header">
+      <h3>Messages</h3>
+      <div style="display:flex;gap:6px;">
+        <button class="chat-header-btn" title="New group" onclick="openGroupModal()">
+          <i data-lucide="users-round" width="17" height="17"></i>
+        </button>
+        <a href="/search/?tab=people" class="chat-header-btn" title="New message">
+          <i data-lucide="edit-3" width="17" height="17"></i>
+        </a>
+      </div>
+    </div>
+
+    <div class="conv-search">
+      <i data-lucide="search" width="14" height="14" class="conv-search-icon"></i>
+      <input type="text" class="conv-search-input" placeholder="Search conversations…"
+        id="conv-search-input" oninput="filterConversations(this.value)" autocomplete="off">
+    </div>
+
+    {% if friends %}
+    <div class="active-friends">
+      <div class="active-friends-label">Friends</div>
+      <div class="active-friends-row">
+        {% for friend in friends %}
+        <a href="/messages/new/{{ friend.username }}/" class="active-friend">
+          <div class="active-friend-avatar-wrap">
+            {% if friend.profile.avatar %}
+            <img src="{{ friend.profile.avatar.url }}" class="active-friend-avatar" alt="{{ friend.username }}">
+            {% else %}
+            <div class="active-friend-avatar active-friend-avatar-placeholder">{{ friend.username|first|upper }}</div>
+            {% endif %}
+            {% if friend.profile.is_online %}<span class="active-friend-dot"></span>{% endif %}
+          </div>
+          <span class="active-friend-name">{{ friend.username|truncatechars:8 }}</span>
+        </a>
+        {% endfor %}
+      </div>
+    </div>
+    {% endif %}
+
+    <div class="conv-list" id="conv-list">
+      {% for item in conv_data %}
+      {% with conv=item.conv other=item.other last=item.last_msg %}
+      <a href="/messages/{{ conv.id }}/"
+        class="conv-item {% if item.is_active %}active{% endif %} {% if item.unread %}unread{% endif %}"
+        data-name="{% if conv.is_group %}{{ conv.name }}{% elif other %}{{ other.username }} {{ other.profile.full_name|default:'' }}{% endif %}">
+
+        <div class="conv-avatar-wrap">
+          {% if conv.is_group %}
+            {% if conv.avatar %}
+            <img src="{{ conv.avatar.url }}" class="avatar avatar-md" alt="{{ conv.name }}">
+            {% else %}
+            <div class="avatar-placeholder avatar-md group-avatar-placeholder" style="font-size:13px;background:var(--color-primary-glow);color:var(--color-primary);">
+              <i data-lucide="users" width="18" height="18"></i>
+            </div>
+            {% endif %}
+          {% elif other %}
+            {% if other.profile.avatar %}
+            <img src="{{ other.profile.avatar.url }}" class="avatar avatar-md" alt="{{ other.username }}">
+            {% else %}
+            <div class="avatar-placeholder avatar-md" style="font-size:16px;">{{ other.username|first|upper }}</div>
+            {% endif %}
+            {% if other.profile.is_online %}<span class="conv-online-dot"></span>{% endif %}
+          {% endif %}
+        </div>
+
+        <div class="conv-item-info">
+          <div class="conv-item-top">
+            <span class="conv-item-name">
+              {% if conv.is_group %}
+              <i data-lucide="users" width="11" height="11" style="opacity:0.6;"></i>
+              {{ conv.name|truncatechars:22 }}
+              {% elif other %}{{ other.profile.full_name|default:other.username }}{% endif %}
+            </span>
+            <span class="conv-item-time">{% if last %}{{ last.created_at|timesince|truncatechars:8 }}{% endif %}</span>
+          </div>
+          <div class="conv-item-preview {% if item.unread %}conv-item-preview-unread{% endif %}">
+            {% if last %}
+              {% if last.sender == user %}<span class="conv-preview-you">You: </span>
+              {% elif conv.is_group %}<span class="conv-preview-you">{{ last.sender.username }}: </span>{% endif %}
+              {% if last.message_type == 'image' %}📷 Photo
+              {% elif last.message_type == 'file' %}📎 File
+              {% else %}{{ last.content|truncatechars:40 }}{% endif %}
+            {% else %}<span style="font-style:italic;opacity:0.5;">No messages yet</span>{% endif %}
+          </div>
+        </div>
+        {% if item.unread %}<span class="conv-unread-badge">{{ item.unread }}</span>{% endif %}
+      </a>
+      {% endwith %}
+      {% empty %}
+      <div class="conv-empty">
+        <div class="conv-empty-icon"><i data-lucide="message-circle" width="48" height="48"></i></div>
+        <p class="conv-empty-title">No conversations</p>
+        <p class="conv-empty-sub">Find friends to chat with.</p>
+        <a href="/search/?tab=people" class="btn btn-primary btn-sm">Find People</a>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+
+  <!-- ══════════════════════════
+       RIGHT: chat panel
+  ══════════════════════════ -->
+  <div class="chat-panel" id="chat-panel">
+    {% if active_conversation %}
+
+    <!-- ── Chat header ── -->
+    <div class="chat-header">
+      <button class="chat-header-btn" id="back-btn"
+        onclick="document.getElementById('conv-list-panel').classList.toggle('show-mobile')"
+        style="display:none;">
+        <i data-lucide="arrow-left" width="17" height="17"></i>
+      </button>
+
+      {% if active_conversation.is_group %}
+      <div class="chat-header-user" style="cursor:default;">
+        <div style="position:relative;flex-shrink:0;">
+          {% if active_conversation.avatar %}
+          <img src="{{ active_conversation.avatar.url }}" class="avatar avatar-md" alt="">
+          {% else %}
+          <div class="avatar-placeholder avatar-md" style="font-size:12px;background:var(--color-primary-glow);color:var(--color-primary);">
+            <i data-lucide="users" width="16" height="16"></i>
+          </div>
+          {% endif %}
+        </div>
+        <div class="chat-header-info">
+          <div class="chat-header-name">{{ active_conversation.name }}</div>
+          <div class="chat-header-status">
+            {{ group_members|length|add:"1" }} member{{ group_members|length|add:"1"|pluralize }}
+            <span class="online-dot" style="margin-left:6px;"></span> Group
+          </div>
+        </div>
+      </div>
+
+      <div class="chat-header-actions">
+        <a href="/messages/group/{{ active_conversation.id }}/create-event/" class="chat-header-btn group-event-btn" title="Create event together">
+          <i data-lucide="calendar-plus" width="17" height="17"></i>
+        </a>
+        <button class="chat-header-btn" onclick="toggleGroupPanel()" title="Group info">
+          <i data-lucide="users" width="17" height="17"></i>
+        </button>
+        <button class="chat-header-btn" onclick="toggleDropdown('chat-more-menu')">
+          <i data-lucide="more-vertical" width="17" height="17"></i>
+        </button>
+        <div id="chat-more-menu" class="dropdown-menu" style="right:0;display:none;min-width:180px;">
+          <button class="dropdown-item" onclick="openRenameGroup()">
+            <i data-lucide="pencil" width="14" height="14"></i> Rename Group
+          </button>
+          <button class="dropdown-item" onclick="openAddMemberModal()">
+            <i data-lucide="user-plus" width="14" height="14"></i> Add Member
+          </button>
+          <div class="dropdown-divider"></div>
+          <button class="dropdown-item" style="color:var(--color-danger);" onclick="leaveGroup()">
+            <i data-lucide="log-out" width="14" height="14"></i> Leave Group
+          </button>
+        </div>
+      </div>
+
+      {% else %}
+      <a href="/profile/{{ other_user.username }}/" class="chat-header-user">
+        <div style="position:relative;flex-shrink:0;">
+          {% if other_user.profile.avatar %}
+          <img src="{{ other_user.profile.avatar.url }}" class="avatar avatar-md" alt="{{ other_user.username }}">
+          {% else %}
+          <div class="avatar-placeholder avatar-md" style="font-size:16px;">{{ other_user.username|first|upper }}</div>
+          {% endif %}
+          {% if other_user.profile.is_online %}<span class="chat-header-online"></span>{% endif %}
+        </div>
+        <div class="chat-header-info">
+          <div class="chat-header-name">{{ other_user.profile.full_name|default:other_user.username }}</div>
+          <div class="chat-header-status" id="chat-status-text">
+            {% if other_user.profile.is_online %}<span class="online-dot"></span> Active now
+            {% else %}Last seen {{ other_user.profile.last_seen|timesince|default:"recently" }} ago{% endif %}
+          </div>
+        </div>
+      </a>
+      <div class="chat-header-actions">
+        <a href="/profile/{{ other_user.username }}/" class="chat-header-btn" title="View profile">
+          <i data-lucide="user" width="17" height="17"></i>
+        </a>
+        <button class="chat-header-btn" onclick="toggleChatSearch()">
+          <i data-lucide="search" width="17" height="17"></i>
+        </button>
+        <button class="chat-header-btn" onclick="toggleDropdown('chat-more-menu')">
+          <i data-lucide="more-vertical" width="17" height="17"></i>
+        </button>
+        <div id="chat-more-menu" class="dropdown-menu" style="right:0;display:none;min-width:180px;">
+          <a href="/profile/{{ other_user.username }}/" class="dropdown-item">
+            <i data-lucide="user" width="14" height="14"></i> View Profile
+          </a>
+          <div class="dropdown-divider"></div>
+          <button class="dropdown-item" style="color:var(--color-danger);">
+            <i data-lucide="slash" width="14" height="14"></i> Block
+          </button>
+        </div>
+      </div>
+      {% endif %}
+    </div>
+
+    <!-- In-chat search (DMs only) -->
+    <div id="chat-search-bar" style="display:none;" class="chat-search-bar">
+      <i data-lucide="search" width="14" height="14" style="color:var(--color-text-muted);flex-shrink:0;"></i>
+      <input type="text" class="chat-search-input" id="chat-search-input" placeholder="Search messages…" oninput="searchMessages(this.value)">
+      <button class="chat-header-btn" onclick="toggleChatSearch()"><i data-lucide="x" width="14" height="14"></i></button>
+    </div>
+
+    <!-- Reply bar -->
+    <div id="reply-bar" style="display:none;" class="reply-bar">
+      <div class="reply-bar-stripe"></div>
+      <div class="reply-bar-content">
+        <div class="reply-bar-name" id="reply-bar-name">Replying to</div>
+        <div class="reply-bar-text" id="reply-bar-text"></div>
+      </div>
+      <button class="reply-bar-close" onclick="cancelReply()">
+        <i data-lucide="x" width="14" height="14"></i>
+      </button>
+    </div>
+
+    <!-- Chat body wrap (messages + optional group panel) -->
+    <div class="chat-body-wrap" id="chat-body-wrap">
+
+    <!-- Messages -->
+    <div class="chat-messages" id="messages-container">
+      {% regroup messages by created_at|date:"Y-m-d" as messages_by_date %}
+      {% for date_group in messages_by_date %}
+      <div class="chat-date-sep">
+        <span>{% if date_group.grouper == today %}Today
+        {% elif date_group.grouper == yesterday %}Yesterday
+        {% else %}{{ date_group.grouper|date:"D, M j" }}{% endif %}</span>
+      </div>
+
+      {% for msg in date_group.list %}
+      <div class="msg-row {% if msg.sender == user %}own{% endif %}"
+        id="msg-{{ msg.id }}" data-id="{{ msg.id }}"
+        data-content="{{ msg.content|truncatechars:80 }}"
+        data-sender="{{ msg.sender.username }}"
+        ondblclick="setReply({{ msg.id }}, '{{ msg.sender.username }}', '{{ msg.content|truncatechars:60|escapejs }}')">
+
+        {% if msg.sender != user %}
+        <div class="msg-avatar-col">
+          {% if msg.sender.profile.avatar %}
+          <img src="{{ msg.sender.profile.avatar.url }}" class="msg-avatar" alt="{{ msg.sender.username }}" title="{{ msg.sender.username }}">
+          {% else %}
+          <div class="msg-avatar msg-avatar-placeholder" title="{{ msg.sender.username }}">{{ msg.sender.username|first|upper }}</div>
+          {% endif %}
+        </div>
+        {% endif %}
+
+        <div class="msg-content-wrap">
+          {% if active_conversation.is_group and msg.sender != user %}
+          <div class="msg-group-sender">{{ msg.sender.profile.full_name|default:msg.sender.username }}</div>
+          {% endif %}
+
+          {% if msg.reply_to and not msg.reply_to.is_deleted %}
+          <div class="msg-reply-preview" onclick="scrollToMsg({{ msg.reply_to.id }})">
+            <div class="msg-reply-author">{{ msg.reply_to.sender.username }}</div>
+            <div class="msg-reply-text">{{ msg.reply_to.content|truncatechars:55 }}</div>
+          </div>
+          {% endif %}
+
+          <div class="msg-bubble {% if msg.message_type == 'image' %}msg-bubble-media{% endif %}">
+            {% if msg.message_type == 'image' and msg.file %}
+            <img src="{{ msg.file.url }}" class="msg-image" onclick="openMsgImage(this.src)" alt="">
+            {% elif msg.message_type == 'file' and msg.file %}
+            <a href="{{ msg.file.url }}" target="_blank" class="msg-file">
+              <i data-lucide="file" width="20" height="20"></i>
+              <span>{{ msg.file.name|truncatechars:24 }}</span>
+              <i data-lucide="download" width="14" height="14" style="opacity:0.7;"></i>
+            </a>
+            {% else %}{{ msg.content|linebreaksbr }}{% endif %}
+          </div>
+
+          <div class="msg-meta">
+            {{ msg.created_at|date:"g:i A" }}
+            {% if msg.is_edited %}<span class="msg-edited">· edited</span>{% endif %}
+            {% if msg.sender == user %}
+            <span class="msg-receipt" title="Sent"><i data-lucide="check-check" width="11" height="11"></i></span>
+            {% endif %}
+          </div>
+        </div>
+
+        <div class="msg-actions">
+          <button class="msg-action-btn" onclick="setReply({{ msg.id }}, '{{ msg.sender.username }}', '{{ msg.content|truncatechars:60|escapejs }}')" title="Reply">
+            <i data-lucide="corner-up-left" width="13" height="13"></i>
+          </button>
+          <button class="msg-action-btn" onclick="addReaction({{ msg.id }}, this)" title="React">
+            <i data-lucide="smile" width="13" height="13"></i>
+          </button>
+        </div>
+      </div>
+      {% endfor %}
+      {% endfor %}
+
+      <div id="typing-indicator" style="display:none;" class="msg-row">
+        <div class="msg-avatar msg-avatar-placeholder" id="typing-avatar">?</div>
+        <div class="msg-content-wrap">
+          <div class="msg-bubble msg-bubble-typing">
+            <div class="typing-dots">
+              <div class="typing-dot"></div><div class="typing-dot"></div><div class="typing-dot"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Group members side panel -->
+    {% if active_conversation.is_group %}
+    <div class="group-panel" id="group-panel" style="display:none;">
+      <div class="group-panel-header">
+        <span>Members ({{ group_members|length|add:"1" }})</span>
+        <button onclick="toggleGroupPanel()" style="background:none;border:none;cursor:pointer;color:var(--color-text-muted);">
+          <i data-lucide="x" width="16" height="16"></i>
+        </button>
+      </div>
+
+      <div class="group-panel-actions">
+        <a href="/messages/group/{{ active_conversation.id }}/create-event/" class="btn btn-primary" style="width:100%;justify-content:center;">
+          <i data-lucide="calendar-plus" width="15" height="15"></i> Create Event Together
+        </a>
+        <button class="btn btn-surface" style="width:100%;justify-content:center;margin-top:var(--space-2);" onclick="openAddMemberModal()">
+          <i data-lucide="user-plus" width="15" height="15"></i> Add Member
+        </button>
+      </div>
+
+      <div class="group-panel-members">
+        <!-- You -->
+        <div class="group-member-row">
+          <div style="position:relative;flex-shrink:0;">
+            {% if user.profile.avatar %}
+            <img src="{{ user.profile.avatar.url }}" class="avatar avatar-sm" alt="">
+            {% else %}
+            <div class="avatar-placeholder avatar-sm" style="font-size:12px;">{{ user.username|first|upper }}</div>
+            {% endif %}
+            <span class="group-member-online-dot"></span>
+          </div>
+          <div class="group-member-info">
+            <div class="group-member-name">{{ user.profile.full_name|default:user.username }} <span style="font-size:10px;color:var(--color-primary);">(you)</span></div>
+            <div class="group-member-handle">@{{ user.username }}</div>
+          </div>
+          {% if active_conversation.created_by == user %}
+          <span class="group-role-badge">Admin</span>
+          {% endif %}
+        </div>
+
+        {% for member in group_members %}
+        <div class="group-member-row">
+          <div style="position:relative;flex-shrink:0;">
+            {% if member.profile.avatar %}
+            <img src="{{ member.profile.avatar.url }}" class="avatar avatar-sm" alt="{{ member.username }}">
+            {% else %}
+            <div class="avatar-placeholder avatar-sm" style="font-size:12px;">{{ member.username|first|upper }}</div>
+            {% endif %}
+            {% if member.profile.is_online %}<span class="group-member-online-dot"></span>{% endif %}
+          </div>
+          <div class="group-member-info">
+            <a href="/profile/{{ member.username }}/" class="group-member-name">{{ member.profile.full_name|default:member.username }}</a>
+            <div class="group-member-handle">@{{ member.username }}</div>
+          </div>
+          {% if active_conversation.created_by == member %}
+          <span class="group-role-badge">Admin</span>
+          {% endif %}
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+    {% endif %}
+
+    </div>{# end chat-body-wrap #}
+
+    <!-- Emoji picker -->
+    <div id="emoji-picker" class="emoji-picker" style="display:none;">
+      {% for emoji in "😀😂❤️👍🎉🔥😍🙏😭💪👏🎯✨😊🤝" %}
+      <button class="emoji-btn" onclick="insertEmoji('{{ emoji }}')">{{ emoji }}</button>
+      {% endfor %}
+    </div>
+
+    <!-- Input area -->
+    <div class="chat-input-area">
+      <button class="chat-input-btn" onclick="document.getElementById('image-input').click()" title="Send image">
+        <i data-lucide="image" width="18" height="18"></i>
+      </button>
+      <input type="file" id="image-input" style="display:none" accept="image/*">
+      <div class="chat-input-field-wrap">
+        <textarea class="chat-input-field" id="chat-input"
+          placeholder="{% if active_conversation.is_group %}Message {{ active_conversation.name }}…{% elif other_user %}Message {{ other_user.profile.full_name|default:other_user.username }}…{% endif %}"
+          rows="1" onkeydown="handleChatKey(event)" oninput="autoResizeTextarea(this)"></textarea>
+      </div>
+      <button class="chat-input-btn" onclick="toggleEmojiPicker()" title="Emoji">
+        <i data-lucide="smile" width="18" height="18"></i>
+      </button>
+      <button class="chat-send-btn" onclick="sendMessage()" id="send-btn" title="Send (Enter)">
+        <i data-lucide="send" width="16" height="16"></i>
+      </button>
+    </div>
+
+    {% else %}
+    <!-- No conversation selected -->
+    <div class="chat-empty">
+      <div class="chat-empty-icon"><i data-lucide="message-circle" width="64" height="64"></i></div>
+      <h4 class="chat-empty-title">Your Messages</h4>
+      <p class="chat-empty-sub">Pick a conversation or start a new one.</p>
+      <div style="display:flex;gap:var(--space-3);flex-wrap:wrap;justify-content:center;margin-top:var(--space-4);">
+        <a href="/search/?tab=people" class="btn btn-primary">
+          <i data-lucide="search" width="16" height="16"></i> Find People
+        </a>
+        <button class="btn btn-surface" onclick="openGroupModal()">
+          <i data-lucide="users-round" width="16" height="16"></i> Create Group
+        </button>
+      </div>
+    </div>
+    {% endif %}
+  </div>
+
+</div>
+
+<!-- ══ Image lightbox ══ -->
+<div id="msg-lightbox" onclick="this.style.display='none'"
+  style="display:none;position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,0.95);align-items:center;justify-content:center;cursor:zoom-out;">
+  <img id="msg-lightbox-img" style="max-width:92vw;max-height:92vh;object-fit:contain;border-radius:8px;" alt="">
+</div>
+
+<!-- ══ Reaction picker ══ -->
+<div id="reaction-picker" class="reaction-picker" style="display:none;">
+  {% for e in "❤️👍😂🔥😮😢👎" %}
+  <button class="reaction-btn" onclick="pickReaction('{{ e }}')">{{ e }}</button>
+  {% endfor %}
+</div>
+
+<!-- ══ Create Group Modal ══ -->
+<div id="group-modal" class="modal-overlay" style="display:none;" onclick="if(event.target===this)closeGroupModal()">
+  <div class="modal-box" style="max-width:480px;">
+    <div class="modal-header">
+      <h3 class="modal-title"><i data-lucide="users-round" width="18" height="18" style="color:var(--color-primary);"></i> Create Group</h3>
+      <button class="modal-close" onclick="closeGroupModal()"><i data-lucide="x" width="16" height="16"></i></button>
+    </div>
+    <div class="modal-body">
+      <div class="form-group">
+        <label class="form-label">Group Name</label>
+        <input type="text" id="group-name-input" class="form-control" placeholder="e.g. Weekend Crew" maxlength="80">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Add Friends</label>
+        <div class="group-friend-grid" id="group-friend-grid">
+          {% for friend in friends %}
+          <label class="group-friend-item">
+            <input type="checkbox" class="group-friend-cb" value="{{ friend.id }}" style="display:none;">
+            <div class="group-friend-avatar">
+              {% if friend.profile.avatar %}
+              <img src="{{ friend.profile.avatar.url }}" class="avatar avatar-md" alt="{{ friend.username }}">
+              {% else %}
+              <div class="avatar-placeholder avatar-md" style="font-size:15px;">{{ friend.username|first|upper }}</div>
+              {% endif %}
+            </div>
+            <div class="group-friend-name">{{ friend.profile.full_name|default:friend.username|truncatechars:12 }}</div>
+            <div class="group-friend-check"><i data-lucide="check" width="12" height="12"></i></div>
+          </label>
+          {% empty %}
+          <p style="color:var(--color-text-muted);font-size:14px;">Add friends first to create a group with them.</p>
+          {% endfor %}
+        </div>
+      </div>
+      <div id="group-error" style="color:var(--color-danger);font-size:13px;display:none;margin-top:var(--space-2);"></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-surface" onclick="closeGroupModal()">Cancel</button>
+      <button class="btn btn-primary" onclick="submitCreateGroup()" id="create-group-btn">
+        <i data-lucide="check" width="14" height="14"></i> Create Group
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- ══ Add Member Modal ══ -->
+<div id="add-member-modal" class="modal-overlay" style="display:none;" onclick="if(event.target===this)closeAddMemberModal()">
+  <div class="modal-box" style="max-width:400px;">
+    <div class="modal-header">
+      <h3 class="modal-title"><i data-lucide="user-plus" width="18" height="18" style="color:var(--color-primary);"></i> Add Member</h3>
+      <button class="modal-close" onclick="closeAddMemberModal()"><i data-lucide="x" width="16" height="16"></i></button>
+    </div>
+    <div class="modal-body">
+      <div class="group-friend-grid">
+        {% for friend in friends %}
+        <button class="group-friend-item" onclick="addMemberToGroup('{{ friend.id }}', this)" style="cursor:pointer;" title="{{ friend.username }}">
+          <div class="group-friend-avatar">
+            {% if friend.profile.avatar %}
+            <img src="{{ friend.profile.avatar.url }}" class="avatar avatar-md" alt="">
+            {% else %}
+            <div class="avatar-placeholder avatar-md" style="font-size:15px;">{{ friend.username|first|upper }}</div>
+            {% endif %}
+          </div>
+          <div class="group-friend-name">{{ friend.profile.full_name|default:friend.username|truncatechars:12 }}</div>
+        </button>
+        {% empty %}
+        <p style="color:var(--color-text-muted);font-size:14px;">No friends to add.</p>
+        {% endfor %}
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-surface" onclick="closeAddMemberModal()">Close</button>
+    </div>
+  </div>
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script src="/static/js/chat.js"></script>
+{% if active_conversation %}
+<script>
+const CONV_ID = {{ active_conversation.id }};
+const USER_ID = '{{ user.id }}';
+const IS_GROUP = {{ active_conversation.is_group|yesno:"true,false" }};
+window._myUsername = '{{ user.username|escapejs }}';
+window._myAvatar = '{% if user.profile.avatar %}{{ user.profile.avatar.url }}{% endif %}';
+initChat(CONV_ID, USER_ID);
+
+const container = document.getElementById('messages-container');
+if (container) container.scrollTop = container.scrollHeight;
+
+// Reply
+let replyToId = null;
+function setReply(msgId, senderName, content) {
+  replyToId = msgId;
+  document.getElementById('reply-bar').style.display = 'flex';
+  document.getElementById('reply-bar-name').textContent = 'Replying to ' + senderName;
+  document.getElementById('reply-bar-text').textContent = content;
+  document.getElementById('chat-input').focus();
+}
+function cancelReply() {
+  replyToId = null;
+  document.getElementById('reply-bar').style.display = 'none';
+}
+function scrollToMsg(id) {
+  const el = document.getElementById('msg-' + id);
+  if (!el) return;
+  el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  el.classList.add('msg-highlight');
+  setTimeout(() => el.classList.remove('msg-highlight'), 1500);
+}
+
+// Emoji
+function toggleEmojiPicker() {
+  const p = document.getElementById('emoji-picker');
+  p.style.display = p.style.display === 'none' ? 'flex' : 'none';
+}
+function insertEmoji(emoji) {
+  const input = document.getElementById('chat-input');
+  const pos = input.selectionStart;
+  input.value = input.value.slice(0, pos) + emoji + input.value.slice(pos);
+  input.focus();
+  document.getElementById('emoji-picker').style.display = 'none';
+}
+
+// Reactions
+let reactionTargetId = null;
+function addReaction(msgId, btn) {
+  reactionTargetId = msgId;
+  const picker = document.getElementById('reaction-picker');
+  const rect = btn.getBoundingClientRect();
+  picker.style.top = (rect.top - 52) + 'px';
+  picker.style.left = rect.left + 'px';
+  picker.style.display = 'flex';
+}
+function pickReaction(emoji) {
+  document.getElementById('reaction-picker').style.display = 'none';
+  if (!reactionTargetId) return;
+  const row = document.getElementById('msg-' + reactionTargetId);
+  if (!row) return;
+  let reactBar = row.querySelector('.msg-reactions');
+  if (!reactBar) {
+    reactBar = document.createElement('div');
+    reactBar.className = 'msg-reactions';
+    row.querySelector('.msg-content-wrap').appendChild(reactBar);
+  }
+  const existing = [...reactBar.querySelectorAll('.msg-reaction')].find(r => r.dataset.emoji === emoji);
+  if (existing) {
+    existing.dataset.count = parseInt(existing.dataset.count || 1) + 1;
+    existing.querySelector('span').textContent = existing.dataset.count;
+  } else {
+    const b = document.createElement('button');
+    b.className = 'msg-reaction'; b.dataset.emoji = emoji; b.dataset.count = 1;
+    b.innerHTML = `${emoji} <span>1</span>`;
+    reactBar.appendChild(b);
+  }
+}
+
+// Group panel
+function toggleGroupPanel() {
+  const p = document.getElementById('group-panel');
+  if (p) p.style.display = p.style.display === 'none' ? 'flex' : 'none';
+}
+
+// Group rename
+function openRenameGroup() {
+  const name = prompt('New group name:', '{{ active_conversation.name|escapejs }}');
+  if (!name || !name.trim()) return;
+  postTo('/messages/group/{{ active_conversation.id }}/settings/', { action: 'rename', name: name.trim() })
+    .then(d => { if (d.ok) { showToast('Group renamed'); location.reload(); } });
+}
+
+// Leave group
+function leaveGroup() {
+  if (!confirm('Leave this group?')) return;
+  postTo('/messages/group/{{ active_conversation.id }}/settings/', { action: 'leave' })
+    .then(d => { if (d.redirect) window.location.href = d.redirect; });
+}
+
+// Add member
+function openAddMemberModal() {
+  document.getElementById('add-member-modal').style.display = 'flex';
+}
+function closeAddMemberModal() {
+  document.getElementById('add-member-modal').style.display = 'none';
+}
+function addMemberToGroup(userId, btn) {
+  btn.disabled = true;
+  postTo('/messages/group/{{ active_conversation.id }}/settings/', { action: 'add_member', user_id: userId })
+    .then(d => { if (d.ok) { showToast('Member added'); btn.style.opacity = '0.4'; } });
+}
+
+// Input helpers
+function autoResizeTextarea(el) {
+  el.style.height = 'auto';
+  el.style.height = Math.min(el.scrollHeight, 120) + 'px';
+}
+function handleChatKey(e) {
+  if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(); }
+}
+function toggleChatSearch() {
+  const bar = document.getElementById('chat-search-bar');
+  const vis = bar && bar.style.display !== 'none';
+  if (bar) { bar.style.display = vis ? 'none' : 'flex'; if (!vis) document.getElementById('chat-search-input').focus(); }
+}
+function searchMessages(q) {
+  document.querySelectorAll('#messages-container .msg-row').forEach(r => {
+    r.style.opacity = !q || (r.dataset.content||'').toLowerCase().includes(q.toLowerCase()) ? '' : '0.2';
+  });
+}
+function openMsgImage(src) {
+  document.getElementById('msg-lightbox-img').src = src;
+  document.getElementById('msg-lightbox').style.display = 'flex';
+}
+
+// Capture chat.js sendMessage before overriding, so we can pass replyToId
+const _chatSend = sendMessage;
+window.sendMessage = function() {
+  _chatSend(replyToId);
+  if (replyToId) cancelReply();
+};
+
+document.addEventListener('click', e => {
+  if (!e.target.closest('#reaction-picker') && !e.target.closest('.msg-action-btn[title="React"]'))
+    document.getElementById('reaction-picker').style.display = 'none';
+  if (!e.target.closest('#emoji-picker') && !e.target.closest('.chat-input-btn[title="Emoji"]'))
+    document.getElementById('emoji-picker').style.display = 'none';
+});
+</script>
+{% endif %}
+
+<script>
+// Helpers that work regardless of active conversation
+const CSRF = '{{ csrf_token }}';
+
+async function postTo(url, data) {
+  const body = new URLSearchParams(data);
+  const r = await fetch(url, {
+    method: 'POST',
+    headers: { 'X-CSRFToken': CSRF, 'Content-Type': 'application/x-www-form-urlencoded' },
+    body,
+  });
+  return r.json().catch(() => ({}));
+}
+
+function filterConversations(q) {
+  document.querySelectorAll('#conv-list .conv-item').forEach(item => {
+    item.style.display = (item.dataset.name||'').toLowerCase().includes(q.toLowerCase()) ? '' : 'none';
+  });
+}
+
+// Group creation modal
+function openGroupModal() { document.getElementById('group-modal').style.display = 'flex'; }
+function closeGroupModal() { document.getElementById('group-modal').style.display = 'none'; }
+
+// Use 'change' event so the browser's label toggle runs first, then we read the final state
+document.querySelectorAll('.group-friend-cb').forEach(cb => {
+  cb.addEventListener('change', function() {
+    this.closest('.group-friend-item').classList.toggle('selected', this.checked);
+  });
+});
+
+async function submitCreateGroup() {
+  const name = document.getElementById('group-name-input').value.trim();
+  const members = [...document.querySelectorAll('.group-friend-cb:checked')].map(c => c.value);
+  const errEl = document.getElementById('group-error');
+  errEl.style.display = 'none';
+
+  if (!name) { errEl.textContent = 'Please enter a group name.'; errEl.style.display = 'block'; return; }
+  if (!members.length) { errEl.textContent = 'Select at least one friend.'; errEl.style.display = 'block'; return; }
+
+  const btn = document.getElementById('create-group-btn');
+  btn.disabled = true; btn.textContent = 'Creating…';
+
+  const body = new URLSearchParams({ name, csrfmiddlewaretoken: CSRF });
+  members.forEach(m => body.append('members', m));
+  const r = await fetch('/messages/group/create/', {
+    method: 'POST',
+    headers: { 'X-CSRFToken': CSRF, 'Content-Type': 'application/x-www-form-urlencoded' },
+    body,
+  });
+  const d = await r.json().catch(() => ({}));
+  if (d.redirect) { window.location.href = d.redirect; }
+  else { errEl.textContent = d.error || 'Something went wrong.'; errEl.style.display = 'block'; btn.disabled = false; btn.textContent = 'Create Group'; }
+}
+
+// Mobile
+function checkMobile() {
+  const backBtn = document.getElementById('back-btn');
+  if (backBtn) backBtn.style.display = window.innerWidth < 768 ? 'flex' : 'none';
+}
+window.addEventListener('resize', checkMobile);
+checkMobile();
+</script>
+{% endblock %}

@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{% block title %}KIPAS — Connect. Explore. Experience.{% endblock %}</title>
+  <meta name="description" content="{% block meta_description %}KIPAS is a social event platform where you discover, host, and join real-world events.{% endblock %}">
+
+  <!-- Preconnect -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+
+  <!-- Fonts -->
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+
+  <!-- Lucide Icons -->
+  <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
+
+  <!-- KIPAS CSS -->
+  <link rel="stylesheet" href="/static/css/variables.css">
+  <link rel="stylesheet" href="/static/css/base.css">
+  <link rel="stylesheet" href="/static/css/components.css">
+  {% block extra_css %}{% endblock %}
+
+  <!-- Theme script (inline for zero flash) -->
+  <script>
+    (function(){
+      var t=localStorage.getItem('kipas-theme')||'dark';
+      document.documentElement.setAttribute('data-theme',t);
+    })();
+  </script>
+</head>
+<body>
+  {% block body %}
+
+  <!-- Navbar -->
+  {% block navbar %}
+  <nav class="navbar" role="navigation">
+    <div class="navbar-inner">
+      <a href="/" class="navbar-logo">
+        <svg viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <circle cx="16" cy="12" r="8" stroke="#40FFA7" stroke-width="2.5"/>
+          <path d="M16 20 L16 30" stroke="#40FFA7" stroke-width="2.5" stroke-linecap="round"/>
+          <circle cx="16" cy="12" r="3" fill="#40FFA7"/>
+          <path d="M12 8 L16 4 L20 8" stroke="#40FFA7" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+        KIPAS
+      </a>
+
+      {% if user.is_authenticated %}
+      <div class="navbar-links">
+        <a href="/feed/" class="navbar-link {% if request.path == '/feed/' %}active{% endif %}">
+          <i data-lucide="home" width="18" height="18"></i> Feed
+        </a>
+        <a href="/map/" class="navbar-link {% if request.path == '/map/' %}active{% endif %}">
+          <i data-lucide="map" width="18" height="18"></i> Map
+        </a>
+        <a href="/search/" class="navbar-link {% if request.path == '/search/' %}active{% endif %}">
+          <i data-lucide="search" width="18" height="18"></i> Discover
+        </a>
+        <a href="/messages/" class="navbar-link {% if '/messages/' in request.path %}active{% endif %}">
+          <i data-lucide="message-circle" width="18" height="18"></i> Messages
+        </a>
+      </div>
+      {% else %}
+      <div class="navbar-links">
+        <a href="/" class="navbar-link">Explore</a>
+        <a href="/#how-it-works" class="navbar-link">How It Works</a>
+        <a href="/map/" class="navbar-link">Map</a>
+      </div>
+      {% endif %}
+
+      <div class="navbar-actions">
+        <!-- Theme toggle -->
+        <button id="theme-toggle" onclick="toggleTheme()" class="notif-btn" aria-label="Toggle theme" title="Toggle theme">
+          <i data-lucide="moon" width="18" height="18" class="icon-moon"></i>
+          <i data-lucide="sun" width="18" height="18" class="icon-sun hidden"></i>
+        </button>
+
+        {% if user.is_authenticated %}
+        <!-- Notifications -->
+        <a href="/notifications/" class="notif-btn" style="text-decoration:none;color:var(--color-text-muted);">
+          <i data-lucide="bell" width="18" height="18"></i>
+          {% with unread_count=user.notifications.filter.count %}
+          {% if unread_count > 0 %}
+          <span class="notif-badge" id="notif-badge">{{ unread_count }}</span>
+          {% endif %}
+          {% endwith %}
+        </a>
+
+        <!-- User menu -->
+        <div class="user-menu">
+          <button class="user-menu-btn" onclick="toggleDropdown('user-dropdown')">
+            {% if user.profile.avatar %}
+            <img src="{{ user.profile.avatar.url }}" class="avatar avatar-xs" alt="{{ user.username }}">
+            {% else %}
+            <div class="avatar-placeholder avatar-xs" style="font-size:12px;">{{ user.username|first|upper }}</div>
+            {% endif %}
+            <span>{{ user.username }}</span>
+            <i data-lucide="chevron-down" width="14" height="14"></i>
+          </button>
+          <div class="user-dropdown hidden" id="user-dropdown">
+            <a href="/profile/{{ user.username }}/" class="dropdown-item">
+              <i data-lucide="user" width="16" height="16"></i> My Profile
+            </a>
+            <a href="/events/create/" class="dropdown-item">
+              <i data-lucide="plus-circle" width="16" height="16"></i> Create Event
+            </a>
+            <a href="/profile/settings/" class="dropdown-item">
+              <i data-lucide="settings" width="16" height="16"></i> Settings
+            </a>
+            {% if user.is_staff %}
+            <a href="/admin-panel/" class="dropdown-item">
+              <i data-lucide="shield" width="16" height="16"></i> Admin Panel
+            </a>
+            {% endif %}
+            <hr class="dropdown-divider">
+            <form method="post" action="/accounts/logout/" style="display:contents;">
+              {% csrf_token %}
+              <button type="submit" class="dropdown-item danger">
+                <i data-lucide="log-out" width="16" height="16"></i> Sign Out
+              </button>
+            </form>
+          </div>
+        </div>
+        {% else %}
+        <a href="/accounts/login/" class="btn btn-outline btn-sm">Log In</a>
+        <a href="/accounts/register/" class="btn btn-primary btn-sm">Get Started</a>
+        {% endif %}
+      </div>
+    </div>
+  </nav>
+  {% endblock navbar %}
+
+  <!-- Toast messages from Django -->
+  {% if messages %}
+  <div style="display:none;">
+    {% for message in messages %}
+    <div data-toast="{{ message }}" data-toast-type="{% if message.tags == 'error' %}error{% elif message.tags == 'warning' %}warning{% else %}success{% endif %}"></div>
+    {% endfor %}
+  </div>
+  {% endif %}
+
+  <!-- Main content -->
+  <main {% block main_attrs %}style="padding-top:64px;"{% endblock %}>
+    {% block content %}{% endblock %}
+  </main>
+
+  {% if user.is_authenticated %}
+  <!-- Floating create event button (mobile) -->
+  <a href="/events/create/" class="fab" title="Create Event" style="display:none;" id="mobile-fab">
+    <i data-lucide="plus" width="24" height="24"></i>
+  </a>
+  {% endif %}
+
+  {% endblock body %}
+
+  <!-- Scripts -->
+  <script src="/static/js/theme.js"></script>
+  <script src="/static/js/main.js"></script>
+  {% block extra_js %}{% endblock %}
+
+  <script>
+    lucide.createIcons();
+    // Show FAB on mobile
+    if (window.innerWidth <= 768) {
+      const fab = document.getElementById('mobile-fab');
+      if (fab) fab.style.display = 'flex';
+    }
+  </script>
+</body>
+</html>

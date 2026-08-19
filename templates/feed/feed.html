@@ -1,0 +1,328 @@
+{% extends 'base.html' %}
+{% block title %}Feed — KIPAS{% endblock %}
+
+{% block content %}
+<div class="feed-layout">
+
+  <!-- ═══════════════════════════
+       LEFT SIDEBAR
+  ═══════════════════════════ -->
+  <aside class="feed-left">
+
+    <!-- Mini profile card -->
+    <div class="feed-user-card">
+      <div class="feed-user-cover">
+        {% if user_profile.cover_photo %}
+        <img src="{{ user_profile.cover_photo.url }}" alt="" style="width:100%;height:100%;object-fit:cover;">
+        {% else %}
+        <div style="width:100%;height:100%;background:linear-gradient(135deg,#0561f5,#40FFA7);opacity:0.6;"></div>
+        {% endif %}
+      </div>
+      <div class="feed-user-avatar-wrap">
+        {% if user_profile.avatar %}
+        <img src="{{ user_profile.avatar.url }}" class="feed-user-avatar-img" alt="{{ user.username }}">
+        {% else %}
+        <div class="feed-user-avatar-placeholder">{{ user.username|first|upper }}</div>
+        {% endif %}
+        {% if user_profile.is_online %}
+        <span class="feed-user-online-dot"></span>
+        {% endif %}
+      </div>
+      <div class="feed-user-info">
+        <div class="feed-user-name">{{ user_profile.full_name|default:user.username }}</div>
+        <div class="feed-user-handle">@{{ user.username }}</div>
+        {% if user_profile %}
+        <span class="level-badge" style="font-size:11px;margin-top:var(--space-1);">
+          Lv{{ user_profile.level }} · {{ user_profile.level_title }}
+        </span>
+        {% endif %}
+      </div>
+
+      {% if user_profile %}
+      <!-- XP bar -->
+      <div class="feed-xp-mini">
+        <div style="display:flex;justify-content:space-between;font-size:11px;color:var(--color-text-muted);margin-bottom:5px;">
+          <span>{{ user_profile.xp }} XP</span>
+          <span>{% if user_profile.level < 10 %}+{{ user_profile.xp_to_next_level }} to Lv{{ user_profile.level|add:"1" }}{% else %}MAX{% endif %}</span>
+        </div>
+        <div class="feed-xp-bar">
+          <div class="feed-xp-fill" style="width:{{ user_profile.level_progress_pct }}%;"></div>
+        </div>
+      </div>
+
+      <!-- Mini stats -->
+      <div class="feed-stats-mini">
+        <div class="feed-stat-mini">
+          <div class="feed-stat-mini-value">{{ user_profile.hosted_events_count }}</div>
+          <div class="feed-stat-mini-label">Hosted</div>
+        </div>
+        <div class="feed-stat-mini">
+          <div class="feed-stat-mini-value">{{ user_profile.joined_events_count }}</div>
+          <div class="feed-stat-mini-label">Joined</div>
+        </div>
+        <div class="feed-stat-mini">
+          <div class="feed-stat-mini-value">{{ followers_count }}</div>
+          <div class="feed-stat-mini-label">Followers</div>
+        </div>
+        <div class="feed-stat-mini">
+          <div class="feed-stat-mini-value">{{ following_count }}</div>
+          <div class="feed-stat-mini-label">Following</div>
+        </div>
+      </div>
+      {% endif %}
+
+      <a href="/profile/{{ user.username }}/" class="btn btn-surface btn-sm" style="width:100%;justify-content:center;margin-top:var(--space-3);">
+        <i data-lucide="user" width="13" height="13"></i> View Profile
+      </a>
+    </div>
+
+    <!-- Nav -->
+    <nav class="feed-nav">
+      <a href="/feed/" class="feed-nav-link {% if tab == 'foryou' or not tab %}active{% endif %}">
+        <i data-lucide="sparkles" width="17" height="17"></i> For You
+      </a>
+      <a href="/feed/?tab=trending" class="feed-nav-link {% if tab == 'trending' %}active{% endif %}">
+        <i data-lucide="trending-up" width="17" height="17"></i> Trending
+      </a>
+      <a href="/feed/?tab=friends" class="feed-nav-link {% if tab == 'friends' %}active{% endif %}">
+        <i data-lucide="users" width="17" height="17"></i> Friends
+      </a>
+      <a href="/feed/?tab=nearby" class="feed-nav-link {% if tab == 'nearby' %}active{% endif %}">
+        <i data-lucide="map-pin" width="17" height="17"></i> Nearby
+      </a>
+      <a href="/feed/?tab=saved" class="feed-nav-link {% if tab == 'saved' %}active{% endif %}">
+        <i data-lucide="bookmark" width="17" height="17"></i> Saved
+      </a>
+      <div class="feed-nav-sep"></div>
+      <a href="/events/map/" class="feed-nav-link">
+        <i data-lucide="map" width="17" height="17"></i> Map View
+      </a>
+      <a href="/search/" class="feed-nav-link">
+        <i data-lucide="search" width="17" height="17"></i> Discover
+      </a>
+      <a href="/notifications/" class="feed-nav-link">
+        <i data-lucide="bell" width="17" height="17"></i> Notifications
+      </a>
+      <div class="feed-nav-sep"></div>
+      <a href="/events/create/" class="feed-nav-create">
+        <i data-lucide="plus" width="16" height="16"></i> Create Event
+      </a>
+    </nav>
+  </aside>
+
+  <!-- ═══════════════════════════
+       CENTER FEED
+  ═══════════════════════════ -->
+  <main class="feed-center">
+
+    <!-- Quick create bar -->
+    <div class="feed-create-bar">
+      {% if user_profile.avatar %}
+      <img src="{{ user_profile.avatar.url }}" class="avatar avatar-sm" alt="">
+      {% else %}
+      <div class="avatar-placeholder avatar-sm" style="font-size:13px;flex-shrink:0;">{{ user.username|first|upper }}</div>
+      {% endif %}
+      <a href="/events/create/" class="feed-create-prompt">
+        What are you planning, {{ user_profile.full_name|default:user.username|truncatewords:1 }}?
+      </a>
+      <a href="/events/create/" class="btn btn-primary btn-sm" style="flex-shrink:0;">
+        <i data-lucide="plus" width="14" height="14"></i> Create
+      </a>
+    </div>
+
+    <!-- Live now banner -->
+    {% if live_events %}
+    <div class="feed-live-banner">
+      <div class="feed-live-label">
+        <span class="live-pulse"></span>
+        Happening Now
+      </div>
+      <div class="feed-live-events">
+        {% for le in live_events %}
+        <a href="/events/{{ le.pk }}/" class="feed-live-event">
+          {% if le.cover_image %}
+          <img src="{{ le.cover_image.url }}" alt="" class="feed-live-thumb">
+          {% else %}
+          <div class="feed-live-thumb feed-live-thumb-placeholder">{{ le.category.icon|default:"🎯" }}</div>
+          {% endif %}
+          <div class="feed-live-info">
+            <div class="feed-live-title">{{ le.title|truncatechars:40 }}</div>
+            <div class="feed-live-meta">{{ le.participant_count }} attending</div>
+          </div>
+          <span class="feed-live-join-btn">Join</span>
+        </a>
+        {% endfor %}
+      </div>
+    </div>
+    {% endif %}
+
+    <!-- Category chip scroller -->
+    <div class="feed-cat-row">
+      <div class="feed-category-scroller" id="cat-scroller">
+        <a href="/feed/?tab={{ tab }}" class="category-chip {% if not category_slug %}active{% endif %}">
+          <span class="category-chip-icon">🌐</span>
+          <span class="category-chip-name">All</span>
+        </a>
+        {% for cat in categories %}
+        <a href="/feed/?tab={{ tab }}&category={{ cat.slug }}" class="category-chip {% if category_slug == cat.slug %}active{% endif %}">
+          <span class="category-chip-icon">{{ cat.icon|default:"📍" }}</span>
+          <span class="category-chip-name">{{ cat.name }}</span>
+        </a>
+        {% endfor %}
+      </div>
+    </div>
+
+    <!-- Tab bar -->
+    <div class="feed-tabs">
+      <a href="/feed/?tab=foryou{% if category_slug %}&category={{ category_slug }}{% endif %}" class="feed-tab {% if tab == 'foryou' or not tab %}active{% endif %}">
+        <i data-lucide="sparkles" width="14" height="14"></i> For You
+      </a>
+      <a href="/feed/?tab=trending{% if category_slug %}&category={{ category_slug }}{% endif %}" class="feed-tab {% if tab == 'trending' %}active{% endif %}">
+        <i data-lucide="trending-up" width="14" height="14"></i> Trending
+      </a>
+      <a href="/feed/?tab=friends{% if category_slug %}&category={{ category_slug }}{% endif %}" class="feed-tab {% if tab == 'friends' %}active{% endif %}">
+        <i data-lucide="users" width="14" height="14"></i> Friends
+      </a>
+      <a href="/feed/?tab=nearby{% if category_slug %}&category={{ category_slug }}{% endif %}" class="feed-tab {% if tab == 'nearby' %}active{% endif %}">
+        <i data-lucide="map-pin" width="14" height="14"></i> Nearby
+      </a>
+      <a href="/feed/?tab=saved{% if category_slug %}&category={{ category_slug }}{% endif %}" class="feed-tab {% if tab == 'saved' %}active{% endif %}">
+        <i data-lucide="bookmark" width="14" height="14"></i> Saved
+      </a>
+    </div>
+
+    <!-- Event cards -->
+    {% if events %}
+    <div class="events-grid" id="events-grid">
+      {% for event in events %}
+      <div class="event-card-anim" style="animation-delay:{{ forloop.counter0 }}0ms;">
+        {% include 'components/event_card.html' %}
+      </div>
+      {% endfor %}
+    </div>
+    {% else %}
+    <div class="feed-empty-state">
+      <div class="feed-empty-icon">
+        {% if tab == 'saved' %}
+        <i data-lucide="bookmark" width="56" height="56"></i>
+        {% elif tab == 'friends' %}
+        <i data-lucide="users" width="56" height="56"></i>
+        {% elif tab == 'nearby' %}
+        <i data-lucide="map-pin" width="56" height="56"></i>
+        {% elif tab == 'trending' %}
+        <i data-lucide="trending-up" width="56" height="56"></i>
+        {% else %}
+        <i data-lucide="calendar-x" width="56" height="56"></i>
+        {% endif %}
+      </div>
+      <h3 class="feed-empty-title">
+        {% if tab == 'saved' %}No saved events yet
+        {% elif tab == 'friends' %}No events from friends
+        {% elif tab == 'nearby' %}No events nearby
+        {% elif tab == 'trending' %}Nothing trending yet
+        {% else %}No events found{% endif %}
+      </h3>
+      <p class="feed-empty-desc">
+        {% if tab == 'saved' %}Tap the bookmark icon on any event to save it for later.
+        {% elif tab == 'friends' %}Add friends and see what events they're hosting.
+        {% elif tab == 'nearby' %}Set your location in <a href="/profile/settings/?section=privacy">profile settings</a> to discover nearby events.
+        {% else %}Be the first to create something amazing in your area.{% endif %}
+      </p>
+      <div class="feed-empty-actions">
+        <a href="/events/create/" class="btn btn-primary"><i data-lucide="plus" width="15" height="15"></i> Create Event</a>
+        {% if tab != 'foryou' %}<a href="/feed/" class="btn btn-surface">Back to Feed</a>{% endif %}
+      </div>
+    </div>
+    {% endif %}
+  </main>
+
+  <!-- ═══════════════════════════
+       RIGHT SIDEBAR
+  ═══════════════════════════ -->
+  <aside class="feed-right">
+
+    <!-- Upcoming events -->
+    {% if upcoming %}
+    <div class="sidebar-widget">
+      <div class="sidebar-widget-header">
+        <h5><i data-lucide="calendar-check" width="14" height="14" style="color:var(--color-primary);"></i> My Upcoming</h5>
+        <a href="/profile/{{ user.username }}/">See all</a>
+      </div>
+      {% for evt in upcoming %}
+      <a href="/events/{{ evt.pk }}/" class="upcoming-event-row">
+        <div class="upcoming-event-date">
+          <div class="day">{{ evt.start_datetime|date:"j" }}</div>
+          <div class="mon">{{ evt.start_datetime|date:"M" }}</div>
+        </div>
+        <div class="upcoming-event-info">
+          <div class="upcoming-event-title">{{ evt.title|truncatechars:34 }}</div>
+          <div class="upcoming-event-meta">
+            {{ evt.start_datetime|date:"g:i A" }}{% if evt.category %} · {{ evt.category.name }}{% endif %}
+          </div>
+        </div>
+      </a>
+      {% endfor %}
+    </div>
+    {% endif %}
+
+    <!-- Suggested people -->
+    {% if suggested %}
+    <div class="sidebar-widget">
+      <div class="sidebar-widget-header">
+        <h5><i data-lucide="user-plus" width="14" height="14" style="color:var(--color-primary);"></i> People to Follow</h5>
+        <a href="/search/?tab=people">See all</a>
+      </div>
+      {% for person in suggested %}
+      <div class="suggested-user">
+        <a href="/profile/{{ person.username }}/" style="flex-shrink:0;position:relative;">
+          {% if person.profile.avatar %}
+          <img src="{{ person.profile.avatar.url }}" class="avatar avatar-sm" alt="{{ person.username }}">
+          {% else %}
+          <div class="avatar-placeholder avatar-sm" style="font-size:13px;">{{ person.username|first|upper }}</div>
+          {% endif %}
+          {% if person.profile.is_online %}
+          <span style="position:absolute;bottom:0;right:0;width:9px;height:9px;background:var(--color-primary);border-radius:50%;border:2px solid var(--color-bg);"></span>
+          {% endif %}
+        </a>
+        <div class="suggested-user-info">
+          <a href="/profile/{{ person.username }}/" style="text-decoration:none;">
+            <div class="suggested-user-name">{{ person.profile.full_name|default:person.username }}</div>
+            <div class="suggested-user-meta">
+              @{{ person.username }}{% if person.profile.city %} · {{ person.profile.city }}{% endif %}
+            </div>
+          </a>
+        </div>
+        <button class="follow-btn-mini" onclick="followUser('{{ person.username }}', this)">Follow</button>
+      </div>
+      {% endfor %}
+    </div>
+    {% endif %}
+
+    <!-- Trending categories -->
+    <div class="sidebar-widget">
+      <div class="sidebar-widget-header">
+        <h5><i data-lucide="hash" width="14" height="14" style="color:var(--color-primary);"></i> Categories</h5>
+      </div>
+      <div class="sidebar-cat-list">
+        {% for cat in categories|slice:":8" %}
+        <a href="/search/?category={{ cat.slug }}" class="sidebar-cat-item">
+          <span class="sidebar-cat-icon">{{ cat.icon|default:"📍" }}</span>
+          <span class="sidebar-cat-name">{{ cat.name }}</span>
+        </a>
+        {% endfor %}
+      </div>
+    </div>
+
+    <!-- Create CTA -->
+    <div class="feed-create-cta">
+      <div style="font-size:28px;margin-bottom:var(--space-3);">🎉</div>
+      <h5>Host Your Own Event</h5>
+      <p>Bring people together around what you love.</p>
+      <a href="/events/create/" class="btn btn-primary" style="width:100%;justify-content:center;margin-top:var(--space-3);">
+        <i data-lucide="plus" width="15" height="15"></i> Create Event
+      </a>
+    </div>
+
+  </aside>
+</div>
+{% endblock %}

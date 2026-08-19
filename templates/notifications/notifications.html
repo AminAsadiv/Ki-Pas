@@ -1,0 +1,321 @@
+{% extends 'base.html' %}
+{% block title %}Notifications — KIPAS{% endblock %}
+
+{% block content %}
+<div class="notif-page">
+
+  <!-- ═══ LEFT SIDEBAR ═══ -->
+  <aside class="notif-sidebar">
+    <div class="notif-sidebar-inner">
+
+      <div class="notif-sidebar-header">
+        <i data-lucide="bell" width="18" height="18" style="color:var(--color-primary);"></i>
+        <span>Notifications</span>
+        {% if counts.unread %}
+        <span class="badge badge-primary" style="font-size:11px;margin-left:auto;">{{ counts.unread }}</span>
+        {% endif %}
+      </div>
+
+      <nav class="notif-nav">
+        <a href="?tab=all" class="notif-nav-item {% if tab == 'all' or not tab %}active{% endif %}">
+          <i data-lucide="layout-list" width="15" height="15"></i>
+          <span>All</span>
+          {% if counts.all %}<span class="notif-nav-badge">{{ counts.all }}</span>{% endif %}
+        </a>
+        <a href="?tab=unread" class="notif-nav-item {% if tab == 'unread' %}active{% endif %}">
+          <i data-lucide="circle-dot" width="15" height="15"></i>
+          <span>Unread</span>
+          {% if counts.unread %}<span class="notif-nav-badge primary">{{ counts.unread }}</span>{% endif %}
+        </a>
+        <a href="?tab=friends" class="notif-nav-item {% if tab == 'friends' %}active{% endif %}">
+          <i data-lucide="user-plus" width="15" height="15"></i>
+          <span>Friends</span>
+          {% if counts.friends %}<span class="notif-nav-badge">{{ counts.friends }}</span>{% endif %}
+        </a>
+        <a href="?tab=events" class="notif-nav-item {% if tab == 'events' %}active{% endif %}">
+          <i data-lucide="calendar" width="15" height="15"></i>
+          <span>Events</span>
+          {% if counts.events %}<span class="notif-nav-badge">{{ counts.events }}</span>{% endif %}
+        </a>
+        <a href="?tab=messages" class="notif-nav-item {% if tab == 'messages' %}active{% endif %}">
+          <i data-lucide="message-circle" width="15" height="15"></i>
+          <span>Messages</span>
+          {% if counts.messages %}<span class="notif-nav-badge">{{ counts.messages }}</span>{% endif %}
+        </a>
+        <a href="?tab=system" class="notif-nav-item {% if tab == 'system' %}active{% endif %}">
+          <i data-lucide="zap" width="15" height="15"></i>
+          <span>System</span>
+          {% if counts.system %}<span class="notif-nav-badge">{{ counts.system }}</span>{% endif %}
+        </a>
+      </nav>
+
+      <div class="notif-sidebar-divider"></div>
+
+      <div class="notif-summary">
+        <div class="notif-summary-item">
+          <div class="notif-summary-val" style="color:var(--color-primary);">{{ counts.unread }}</div>
+          <div class="notif-summary-label">Unread</div>
+        </div>
+        <div class="notif-summary-item">
+          <div class="notif-summary-val">{{ counts.all }}</div>
+          <div class="notif-summary-label">Total</div>
+        </div>
+        <div class="notif-summary-item">
+          <div class="notif-summary-val" style="color:#F59E0B;">{{ pending_requests|length }}</div>
+          <div class="notif-summary-label">Requests</div>
+        </div>
+      </div>
+
+      <div class="notif-sidebar-divider"></div>
+
+      <a href="/profile/settings/?section=notifications" class="notif-pref-link">
+        <i data-lucide="settings" width="14" height="14"></i>
+        Notification preferences
+      </a>
+    </div>
+  </aside>
+
+  <!-- ═══ MAIN ═══ -->
+  <div class="notif-main">
+
+    <!-- Header -->
+    <div class="notif-main-header">
+      <div>
+        <h2 class="notif-main-title">
+          {% if tab == 'unread' %}Unread
+          {% elif tab == 'friends' %}Friends
+          {% elif tab == 'events' %}Events
+          {% elif tab == 'messages' %}Messages
+          {% elif tab == 'system' %}System
+          {% else %}All Notifications{% endif %}
+        </h2>
+        <p class="notif-main-sub">{{ notifications|length }} notification{{ notifications|length|pluralize }}</p>
+      </div>
+      <button class="btn btn-surface btn-sm" onclick="markAllRead()">
+        <i data-lucide="check-check" width="14" height="14"></i> Mark All Read
+      </button>
+    </div>
+
+    <!-- Friend requests banner -->
+    {% if pending_requests %}
+    <div class="notif-requests-banner">
+      <div class="notif-requests-header">
+        <i data-lucide="user-plus" width="16" height="16" style="color:var(--color-primary);"></i>
+        <span>Friend Requests</span>
+        <span class="badge badge-primary" style="font-size:11px;">{{ pending_requests|length }} pending</span>
+      </div>
+      <div class="notif-requests-list">
+        {% for req in pending_requests %}
+        <div class="notif-friend-req" id="req-{{ req.pk }}">
+          <a href="/profile/{{ req.sender.username }}/" style="flex-shrink:0;">
+            {% if req.sender.profile.avatar %}
+            <img src="{{ req.sender.profile.avatar.url }}" class="avatar avatar-md" alt="{{ req.sender.username }}">
+            {% else %}
+            <div class="avatar-placeholder avatar-md" style="font-size:16px;">{{ req.sender.username|first|upper }}</div>
+            {% endif %}
+          </a>
+          <div class="notif-friend-req-info">
+            <a href="/profile/{{ req.sender.username }}/" class="notif-friend-req-name">
+              {{ req.sender.profile.full_name|default:req.sender.username }}
+            </a>
+            <div class="notif-friend-req-meta">
+              @{{ req.sender.username }}
+              {% if req.sender.profile.level %}
+              <span class="level-badge" style="font-size:10px;padding:2px 6px;">Lv{{ req.sender.profile.level }}</span>
+              {% endif %}
+            </div>
+          </div>
+          <div class="notif-friend-req-btns">
+            <button class="btn btn-primary btn-sm" onclick="respondFriend({{ req.pk }}, 'accept', this)">
+              <i data-lucide="check" width="12" height="12"></i> Accept
+            </button>
+            <button class="btn btn-surface btn-sm" onclick="respondFriend({{ req.pk }}, 'decline', this)">
+              <i data-lucide="x" width="12" height="12"></i>
+            </button>
+          </div>
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+    {% endif %}
+
+    <!-- Notification list grouped by date -->
+    {% if notifications %}
+    {% regroup notifications by created_at|date:"Y-m-d" as notif_days %}
+    <div class="notif-list" id="notif-list">
+      {% for day in notif_days %}
+      <div class="notif-date-group">
+        <div class="notif-date-label">
+          {% with today_str=today|date:"Y-m-d" yesterday_str=yesterday|date:"Y-m-d" %}
+          {% if day.grouper == today_str %}Today
+          {% elif day.grouper == yesterday_str %}Yesterday
+          {% else %}{{ day.list.0.created_at|date:"D, M j" }}{% endif %}
+          {% endwith %}
+        </div>
+
+        {% for notif in day.list %}
+        <div class="notif-item {% if not notif.is_read %}unread{% endif %}"
+          id="notif-{{ notif.pk }}"
+          onclick="notifClick({{ notif.pk }}, this{% if notif.link %}, '{{ notif.link }}'{% endif %})">
+
+          <!-- Type icon ring -->
+          <div class="notif-icon-wrap notif-type-{% if notif.notification_type == 'friend_request' or notif.notification_type == 'friend_accepted' %}friend{% elif notif.notification_type == 'new_message' %}message{% elif notif.notification_type == 'sos_alert' %}danger{% elif notif.notification_type == 'badge_earned' or notif.notification_type == 'level_up' or notif.notification_type == 'xp_earned' %}gold{% elif notif.notification_type == 'event_invitation' or notif.notification_type == 'like' %}pink{% elif notif.notification_type == 'event_reminder' or notif.notification_type == 'event_update' %}event{% else %}default{% endif %}">
+            {% if notif.notification_type == 'friend_request' or notif.notification_type == 'friend_accepted' %}
+            <i data-lucide="user-plus" width="17" height="17"></i>
+            {% elif notif.notification_type == 'new_message' %}
+            <i data-lucide="message-circle" width="17" height="17"></i>
+            {% elif notif.notification_type == 'event_reminder' %}
+            <i data-lucide="bell" width="17" height="17"></i>
+            {% elif notif.notification_type == 'event_update' %}
+            <i data-lucide="refresh-cw" width="17" height="17"></i>
+            {% elif notif.notification_type == 'event_cancelled' %}
+            <i data-lucide="calendar-x" width="17" height="17"></i>
+            {% elif notif.notification_type == 'event_invitation' %}
+            <i data-lucide="calendar-plus" width="17" height="17"></i>
+            {% elif notif.notification_type == 'like' %}
+            <i data-lucide="heart" width="17" height="17"></i>
+            {% elif notif.notification_type == 'badge_earned' %}
+            <i data-lucide="award" width="17" height="17"></i>
+            {% elif notif.notification_type == 'level_up' %}
+            <i data-lucide="trending-up" width="17" height="17"></i>
+            {% elif notif.notification_type == 'xp_earned' %}
+            <i data-lucide="zap" width="17" height="17"></i>
+            {% elif notif.notification_type == 'sos_alert' %}
+            <i data-lucide="alert-circle" width="17" height="17"></i>
+            {% elif notif.notification_type == 'review_received' %}
+            <i data-lucide="star" width="17" height="17"></i>
+            {% elif notif.notification_type == 'account_warning' %}
+            <i data-lucide="shield-alert" width="17" height="17"></i>
+            {% else %}
+            <i data-lucide="bell" width="17" height="17"></i>
+            {% endif %}
+          </div>
+
+          <!-- Actor avatar (overlapping the icon) -->
+          {% if notif.actor %}
+          <div class="notif-actor-avatar">
+            {% if notif.actor.profile.avatar %}
+            <img src="{{ notif.actor.profile.avatar.url }}" class="avatar avatar-sm" alt="{{ notif.actor.username }}">
+            {% else %}
+            <div class="avatar-placeholder avatar-sm" style="font-size:11px;">{{ notif.actor.username|first|upper }}</div>
+            {% endif %}
+          </div>
+          {% endif %}
+
+          <!-- Body -->
+          <div class="notif-body">
+            <div class="notif-title {% if not notif.is_read %}notif-title-bold{% endif %}">{{ notif.title }}</div>
+            <div class="notif-message">{{ notif.message }}</div>
+            <div class="notif-time">
+              <i data-lucide="clock" width="10" height="10"></i>
+              {{ notif.created_at|timesince }} ago
+            </div>
+          </div>
+
+          <!-- Right indicators -->
+          <div class="notif-right">
+            {% if not notif.is_read %}<div class="notif-dot"></div>{% endif %}
+            {% if notif.link %}<i data-lucide="chevron-right" width="15" height="15" style="color:var(--color-text-dim);flex-shrink:0;"></i>{% endif %}
+          </div>
+        </div>
+        {% endfor %}
+      </div>
+      {% endfor %}
+    </div>
+
+    {% else %}
+
+    <!-- Empty state -->
+    <div class="notif-empty">
+      {% if tab == 'unread' %}
+      <div class="notif-empty-icon" style="background:rgba(64,255,167,0.08);border-color:rgba(64,255,167,0.2);">
+        <i data-lucide="check-circle" width="40" height="40" style="color:var(--color-primary);"></i>
+      </div>
+      <h3>All caught up!</h3>
+      <p>No unread notifications right now.</p>
+      {% elif tab == 'friends' %}
+      <div class="notif-empty-icon"><i data-lucide="users" width="40" height="40"></i></div>
+      <h3>No friend activity</h3>
+      <p>Friend requests and acceptances will appear here.</p>
+      <a href="/search/?tab=people" class="btn btn-primary btn-sm">Discover people</a>
+      {% elif tab == 'events' %}
+      <div class="notif-empty-icon"><i data-lucide="calendar" width="40" height="40"></i></div>
+      <h3>No event notifications</h3>
+      <p>Join events to get reminders and updates.</p>
+      <a href="/feed/" class="btn btn-primary btn-sm">Browse events</a>
+      {% elif tab == 'messages' %}
+      <div class="notif-empty-icon"><i data-lucide="message-circle" width="40" height="40"></i></div>
+      <h3>No message notifications</h3>
+      <p>New messages from friends will show here.</p>
+      <a href="/messages/" class="btn btn-primary btn-sm">Go to Messages</a>
+      {% elif tab == 'system' %}
+      <div class="notif-empty-icon"><i data-lucide="zap" width="40" height="40"></i></div>
+      <h3>No system notifications</h3>
+      <p>Level-ups, badges, and rewards show up here.</p>
+      {% else %}
+      <div class="notif-empty-icon"><i data-lucide="bell-off" width="40" height="40"></i></div>
+      <h3>No notifications yet</h3>
+      <p>When something happens, you'll see it here.</p>
+      <a href="/feed/" class="btn btn-primary btn-sm">Explore events</a>
+      {% endif %}
+    </div>
+    {% endif %}
+
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+const csrfToken = '{{ csrf_token }}';
+
+function markAllRead() {
+  fetch('/notifications/read-all/', { method:'POST', headers:{'X-CSRFToken':csrfToken} })
+    .then(r => r.json()).then(() => {
+      document.querySelectorAll('.notif-item.unread').forEach(el => {
+        el.classList.remove('unread');
+        el.querySelector('.notif-dot')?.remove();
+        el.querySelector('.notif-title-bold')?.classList.remove('notif-title-bold');
+      });
+      document.querySelector('.notif-nav-badge.primary')?.remove();
+      const first = document.querySelector('.notif-summary-val');
+      if (first) first.textContent = '0';
+      showToast('All notifications marked as read');
+    });
+}
+
+function notifClick(pk, el, link) {
+  if (!el.classList.contains('unread')) {
+    if (link) window.location.href = link;
+    return;
+  }
+  fetch(`/notifications/${pk}/read/`, { method:'POST', headers:{'X-CSRFToken':csrfToken} })
+    .then(() => {
+      el.classList.remove('unread');
+      el.querySelector('.notif-dot')?.remove();
+      el.querySelector('.notif-title-bold')?.classList.remove('notif-title-bold');
+      if (link) setTimeout(() => window.location.href = link, 120);
+    });
+}
+
+function respondFriend(pk, action, btn) {
+  btn.disabled = true;
+  const row = document.getElementById(`req-${pk}`);
+  fetch(`/notifications/friend/${pk}/${action}/`, { method:'POST', headers:{'X-CSRFToken':csrfToken} })
+    .then(r => r.json()).then(() => {
+      if (!row) return;
+      if (action === 'accept') {
+        row.innerHTML = `<div style="display:flex;align-items:center;gap:8px;color:var(--color-primary);font-size:14px;font-weight:600;padding:var(--space-2) 0;">
+          <i data-lucide="check-circle" width="16" height="16"></i> You are now friends!
+        </div>`;
+        if (window.lucide) lucide.createIcons();
+        showToast('Friend request accepted');
+      } else {
+        row.style.transition = 'opacity 0.3s, max-height 0.3s';
+        row.style.opacity = '0'; row.style.maxHeight = '0'; row.style.overflow = 'hidden';
+        setTimeout(() => row.remove(), 300);
+      }
+    });
+}
+</script>
+{% endblock %}

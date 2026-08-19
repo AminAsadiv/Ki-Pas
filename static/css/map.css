@@ -1,0 +1,258 @@
+/* KIPAS Map Styles */
+
+.map-page {
+  position: fixed;
+  inset: 64px 0 0 0;
+  display: flex;
+  overflow: hidden;
+}
+
+#map {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+}
+
+/* Leaflet overrides */
+.leaflet-container { background: #0a0b1a; }
+.leaflet-tile-pane { filter: brightness(0.9) saturate(0.8); }
+
+/* Custom marker */
+.kipas-marker {
+  width: 40px; height: 48px;
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+.kipas-marker-circle {
+  width: 36px; height: 36px;
+  border-radius: 50%;
+  background: #050761;
+  border: 2.5px solid #40FFA7;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 4px 12px rgba(64,255,167,0.3);
+  transition: all 0.2s ease;
+  position: relative;
+  z-index: 1;
+}
+.kipas-marker-circle svg { width: 18px; height: 18px; color: #40FFA7; }
+.kipas-marker-stem {
+  width: 3px; height: 10px;
+  background: #40FFA7;
+  position: absolute;
+  bottom: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  border-radius: 0 0 2px 2px;
+}
+.kipas-marker:hover .kipas-marker-circle {
+  background: #40FFA7;
+  transform: scale(1.15);
+}
+.kipas-marker:hover .kipas-marker-circle svg { color: #050761; }
+.kipas-marker.selected .kipas-marker-circle {
+  background: #40FFA7;
+  border-color: #fff;
+  box-shadow: 0 4px 20px rgba(64,255,167,0.6);
+}
+.kipas-marker.selected .kipas-marker-circle svg { color: #050761; }
+
+/* User location marker */
+.user-location-marker {
+  width: 20px; height: 20px;
+  border-radius: 50%;
+  background: #40FFA7;
+  border: 3px solid #fff;
+  box-shadow: 0 0 0 0 rgba(64,255,167,0.4);
+  animation: userPulse 2s infinite;
+}
+@keyframes userPulse {
+  0%   { box-shadow: 0 0 0 0   rgba(64,255,167,0.5); }
+  70%  { box-shadow: 0 0 0 16px rgba(64,255,167,0); }
+  100% { box-shadow: 0 0 0 0   rgba(64,255,167,0); }
+}
+
+/* Cluster marker */
+.marker-cluster {
+  background: #050761 !important;
+  border: 2px solid #40FFA7 !important;
+  color: #40FFA7 !important;
+  font-weight: 700 !important;
+  font-size: 13px !important;
+  border-radius: 50% !important;
+  box-shadow: 0 4px 12px rgba(64,255,167,0.25) !important;
+}
+.marker-cluster div {
+  background: transparent !important;
+  color: #40FFA7 !important;
+}
+
+/* Left filter panel */
+.map-left-panel {
+  width: 300px;
+  background: var(--color-surface);
+  border-right: 1px solid var(--color-border);
+  display: flex;
+  flex-direction: column;
+  overflow-y: auto;
+  z-index: 2;
+  flex-shrink: 0;
+}
+.map-panel-header {
+  padding: var(--space-4);
+  border-bottom: 1px solid var(--color-border);
+  flex-shrink: 0;
+}
+.map-panel-header h3 { font-size: 16px; }
+.map-panel-body { padding: var(--space-4); flex: 1; overflow-y: auto; }
+
+/* Event popup / detail panel */
+.map-event-panel {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  background: var(--color-surface);
+  border-top: 1px solid var(--color-border);
+  border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+  box-shadow: 0 -8px 32px rgba(0,0,0,0.4);
+  z-index: 10;
+  transform: translateY(100%);
+  transition: transform 0.35s cubic-bezier(0.4,0,0.2,1);
+  max-height: 60vh;
+  overflow-y: auto;
+}
+.map-event-panel.visible { transform: translateY(0); }
+
+@media (min-width: 900px) {
+  .map-event-panel {
+    position: absolute;
+    right: 0;
+    top: 0;
+    bottom: 0;
+    left: auto;
+    width: 360px;
+    border-radius: 0;
+    border-left: 1px solid var(--color-border);
+    border-top: none;
+    transform: translateX(100%);
+    max-height: none;
+    transition: transform 0.3s ease;
+  }
+  .map-event-panel.visible { transform: translateX(0); }
+}
+
+.map-event-cover {
+  width: 100%;
+  height: 180px;
+  object-fit: cover;
+  display: block;
+}
+.map-event-body { padding: var(--space-4); }
+.map-event-close {
+  position: absolute;
+  top: var(--space-3);
+  right: var(--space-3);
+  width: 32px; height: 32px;
+  background: rgba(10,11,26,0.7);
+  backdrop-filter: blur(4px);
+  border: none;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  color: #fff;
+  z-index: 1;
+}
+
+/* Map search overlay */
+.map-search-overlay {
+  position: absolute;
+  top: var(--space-4);
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 10;
+  width: min(500px, calc(100vw - 32px));
+}
+.map-search-box {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  background: var(--color-surface);
+  border: 1.5px solid var(--color-border);
+  border-radius: var(--radius-pill);
+  padding: 8px 16px;
+  box-shadow: var(--shadow-md);
+}
+.map-search-box input {
+  flex: 1;
+  background: none;
+  border: none;
+  outline: none;
+  color: var(--color-text);
+  font-size: 14px;
+  font-family: var(--font-sans);
+}
+.map-search-box input::placeholder { color: var(--color-text-muted); }
+
+/* Filter pills */
+.filter-pills {
+  display: flex;
+  gap: var(--space-2);
+  overflow-x: auto;
+  scrollbar-width: none;
+  padding-top: var(--space-2);
+}
+.filter-pills::-webkit-scrollbar { display: none; }
+.filter-pill {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 5px 12px;
+  border-radius: var(--radius-pill);
+  font-size: 12px;
+  font-weight: 600;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: var(--transition);
+  background: var(--color-surface);
+  border: 1.5px solid var(--color-border);
+  color: var(--color-text-muted);
+  font-family: var(--font-sans);
+}
+.filter-pill:hover { border-color: var(--color-primary); color: var(--color-primary); }
+.filter-pill.active { background: var(--color-primary-glow); border-color: var(--color-primary); color: var(--color-primary); }
+
+/* "Create event here" ctx menu */
+.map-ctx-menu {
+  position: absolute;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  box-shadow: var(--shadow-md);
+  z-index: 20;
+  min-width: 180px;
+  overflow: hidden;
+}
+.map-ctx-item {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: 10px 16px;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: var(--transition);
+  color: var(--color-text);
+}
+.map-ctx-item:hover { background: var(--color-surface-2); color: var(--color-primary); }
+.map-ctx-item svg { width: 15px; height: 15px; }
+
+@media (max-width: 768px) {
+  .map-left-panel { display: none; }
+}

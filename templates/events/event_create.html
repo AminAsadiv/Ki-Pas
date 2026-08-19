@@ -1,0 +1,791 @@
+{% extends 'base.html' %}
+{% block title %}Create Event — KIPAS{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+{% endblock %}
+
+{% block content %}
+<div class="create-event-page">
+
+  <!-- ═══ LEFT PREVIEW ═══ -->
+  <div class="create-preview-col">
+    <div class="create-preview-sticky">
+      <div class="create-preview-label">Live preview</div>
+      <div class="create-preview-card">
+        <div class="create-preview-cover" id="preview-cover">
+          <div class="create-preview-cover-placeholder" id="preview-placeholder">
+            <span id="preview-emoji">📍</span>
+          </div>
+          <img id="preview-cover-img" style="display:none;width:100%;height:100%;object-fit:cover;" alt="">
+        </div>
+        <div class="create-preview-body">
+          <div class="create-preview-cat" id="preview-cat">Choose a category</div>
+          <div class="create-preview-title" id="preview-title">Your event title</div>
+          <div class="create-preview-meta">
+            <div class="create-preview-meta-item">
+              <i data-lucide="calendar" width="12" height="12"></i>
+              <span id="preview-date">Set a date</span>
+            </div>
+            <div class="create-preview-meta-item">
+              <i data-lucide="map-pin" width="12" height="12"></i>
+              <span id="preview-loc">Set a location</span>
+            </div>
+          </div>
+          <div class="create-preview-host">
+            {% if user.profile.avatar %}
+            <img src="{{ user.profile.avatar.url }}" style="width:22px;height:22px;border-radius:50%;object-fit:cover;" alt="">
+            {% else %}
+            <div style="width:22px;height:22px;border-radius:50%;background:var(--color-primary-glow);display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:var(--color-primary);">{{ user.username|first|upper }}</div>
+            {% endif %}
+            <span>{{ user.username }}</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Step mini-list -->
+      <div class="create-step-mini-list" id="step-mini-list">
+        <div class="create-step-mini active" onclick="goToStep(1)"><span class="create-step-mini-num">1</span> Basics</div>
+        <div class="create-step-mini" onclick="goToStep(2)"><span class="create-step-mini-num">2</span> Date & Time</div>
+        <div class="create-step-mini" onclick="goToStep(3)"><span class="create-step-mini-num">3</span> Location</div>
+        <div class="create-step-mini" onclick="goToStep(4)"><span class="create-step-mini-num">4</span> Settings</div>
+        <div class="create-step-mini" onclick="goToStep(5)"><span class="create-step-mini-num">5</span> Review</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══ RIGHT FORM ═══ -->
+  <div class="create-form-col">
+
+    <!-- Step bar -->
+    <div class="create-steps">
+      <div class="create-step active" id="step-1" onclick="goToStep(1)">
+        <div class="create-step-num">1</div>
+        <div class="create-step-label">Basics</div>
+      </div>
+      <div class="create-step-line" id="line-1"></div>
+      <div class="create-step inactive" id="step-2" onclick="goToStep(2)">
+        <div class="create-step-num">2</div>
+        <div class="create-step-label">Time</div>
+      </div>
+      <div class="create-step-line" id="line-2"></div>
+      <div class="create-step inactive" id="step-3" onclick="goToStep(3)">
+        <div class="create-step-num">3</div>
+        <div class="create-step-label">Location</div>
+      </div>
+      <div class="create-step-line" id="line-3"></div>
+      <div class="create-step inactive" id="step-4" onclick="goToStep(4)">
+        <div class="create-step-num">4</div>
+        <div class="create-step-label">Settings</div>
+      </div>
+      <div class="create-step-line" id="line-4"></div>
+      <div class="create-step inactive" id="step-5" onclick="goToStep(5)">
+        <div class="create-step-num">5</div>
+        <div class="create-step-label">Publish</div>
+      </div>
+    </div>
+
+    {% if error %}
+    <div class="alert alert-danger">
+      <i data-lucide="alert-circle" width="16" height="16"></i> {{ error }}
+    </div>
+    {% endif %}
+
+    <form method="post" action="/events/create/" enctype="multipart/form-data" id="create-form">
+      {% csrf_token %}
+
+      <!-- ── Step 1: Basics ── -->
+      <div class="create-panel active" id="panel-1">
+        <div class="create-panel-header">
+          <div class="create-panel-num">1</div>
+          <div>
+            <h3 class="create-panel-title">Basic Information</h3>
+            <p class="create-panel-sub">Tell people what your event is about</p>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">Event Title <span class="required">*</span></label>
+          <input type="text" name="title" class="form-control" id="input-title"
+            placeholder="Give your event a catchy name"
+            value="{{ data.title|default:'' }}"
+            oninput="updatePreviewTitle(this.value)" required maxlength="200">
+          <div class="form-hint"><span id="title-chars">0</span>/200 characters</div>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">Description <span class="required">*</span></label>
+          <textarea name="description" class="form-control" rows="5"
+            placeholder="What's this event about? Who should come? What will happen?" required>{{ data.description|default:'' }}</textarea>
+          <div class="form-hint">Good descriptions get more sign-ups</div>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">Category <span class="required">*</span></label>
+          <div class="create-cat-grid" id="cat-grid">
+            {% for cat in categories %}
+            <label class="create-cat-option">
+              <input type="radio" name="category" value="{{ cat.id }}" class="sr-only cat-radio"
+                {% if data.category == cat.id|stringformat:"s" %}checked{% endif %}
+                onchange="selectCategory('{{ cat.id }}', '{{ cat.name|escapejs }}', '{{ cat.icon|default:"📍"|escapejs }}')">
+              <div class="create-cat-card" data-id="{{ cat.id }}">
+                <div class="create-cat-icon">{{ cat.icon|default:"📍" }}</div>
+                <div class="create-cat-name">{{ cat.name }}</div>
+              </div>
+            </label>
+            {% endfor %}
+          </div>
+        </div>
+
+        <!-- Subcategory data -->
+        <script id="subcat-data" type="application/json">
+          { {% for cat in categories %}"{{ cat.id }}": [{% for sub in cat.subcategories.all %}{"id":"{{ sub.id }}","name":"{{ sub.name }}"}{% if not forloop.last %},{% endif %}{% endfor %}]{% if not forloop.last %},{% endif %}{% endfor %} }
+        </script>
+
+        <div class="form-group" id="subcat-group" style="display:none;">
+          <label class="form-label">Subcategory</label>
+          <select name="subcategory" class="form-control" id="subcat-select">
+            <option value="">Select subcategory…</option>
+          </select>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">Cover Image</label>
+          <div class="cover-upload" id="cover-drop"
+            onclick="document.getElementById('cover-input').click()"
+            ondragover="event.preventDefault();this.classList.add('drag-over')"
+            ondragleave="this.classList.remove('drag-over')"
+            ondrop="handleDrop(event)">
+            <div id="cover-placeholder-ui">
+              <i data-lucide="image-plus" width="32" height="32" style="color:var(--color-text-muted);display:block;margin:0 auto var(--space-2);"></i>
+              <div style="font-size:14px;font-weight:600;color:var(--color-text-muted);">Click to upload or drag & drop</div>
+              <div style="font-size:12px;color:var(--color-text-dim);margin-top:4px;">PNG, JPG, WebP · Max 5MB · Recommended 1200×630</div>
+            </div>
+            <img id="cover-preview-img" style="display:none;max-height:220px;border-radius:var(--radius-sm);object-fit:contain;" alt="">
+          </div>
+          <input type="file" id="cover-input" name="cover_image" accept="image/*" style="display:none"
+            onchange="handleCoverFile(this.files[0])">
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">Tags <span class="form-label-hint">(comma separated)</span></label>
+          <input type="text" name="tags_raw" class="form-control"
+            placeholder="outdoor, running, weekend, social"
+            value="{{ data.tags_raw|default:'' }}">
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">Rules & Guidelines <span class="form-label-hint">(optional)</span></label>
+          <textarea name="rules" class="form-control" rows="3"
+            placeholder="Any rules or requirements attendees should know?">{{ data.rules|default:'' }}</textarea>
+        </div>
+
+        <div class="create-panel-footer">
+          <div></div>
+          <button type="button" class="btn btn-primary" onclick="goToStep(2)">
+            Date & Time <i data-lucide="arrow-right" width="15" height="15"></i>
+          </button>
+        </div>
+      </div>
+
+      <!-- ── Step 2: Date & Time ── -->
+      <div class="create-panel" id="panel-2" style="display:none;">
+        <div class="create-panel-header">
+          <div class="create-panel-num">2</div>
+          <div>
+            <h3 class="create-panel-title">Date & Time</h3>
+            <p class="create-panel-sub">When does your event take place?</p>
+          </div>
+        </div>
+
+        <div class="form-grid-2">
+          <div class="form-group">
+            <label class="form-label">Start Date & Time <span class="required">*</span></label>
+            <input type="datetime-local" name="start_datetime" class="form-control" id="input-start"
+              value="{{ data.start_datetime|default:'' }}"
+              oninput="updateDatePreview()" required>
+          </div>
+          <div class="form-group">
+            <label class="form-label">End Date & Time</label>
+            <input type="datetime-local" name="end_datetime" class="form-control" id="input-end"
+              value="{{ data.end_datetime|default:'' }}"
+              oninput="updateDuration()">
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">Timezone</label>
+          <select name="timezone" class="form-control">
+            <option value="UTC">UTC</option>
+            <option value="America/New_York">America/New_York (EST/EDT)</option>
+            <option value="America/Chicago">America/Chicago (CST/CDT)</option>
+            <option value="America/Denver">America/Denver (MST/MDT)</option>
+            <option value="America/Los_Angeles">America/Los_Angeles (PST/PDT)</option>
+            <option value="Europe/London">Europe/London (GMT/BST)</option>
+            <option value="Europe/Paris">Europe/Paris (CET/CEST)</option>
+            <option value="Europe/Berlin">Europe/Berlin (CET/CEST)</option>
+            <option value="Asia/Dubai">Asia/Dubai (GST)</option>
+            <option value="Asia/Tehran">Asia/Tehran (IRST)</option>
+            <option value="Asia/Tokyo">Asia/Tokyo (JST)</option>
+            <option value="Asia/Shanghai">Asia/Shanghai (CST)</option>
+            <option value="Asia/Kolkata">Asia/Kolkata (IST)</option>
+            <option value="Australia/Sydney">Australia/Sydney (AEST/AEDT)</option>
+          </select>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">Registration Deadline <span class="form-label-hint">(optional)</span></label>
+          <input type="datetime-local" name="registration_deadline" class="form-control"
+            value="{{ data.registration_deadline|default:'' }}">
+          <div class="form-hint">Last day attendees can register. Leave blank for no deadline.</div>
+        </div>
+
+        <div id="duration-display" style="display:none;" class="create-duration-banner">
+          <i data-lucide="clock" width="15" height="15"></i>
+          <span id="duration-text"></span>
+        </div>
+
+        <div class="create-panel-footer">
+          <button type="button" class="btn btn-surface" onclick="goToStep(1)">
+            <i data-lucide="arrow-left" width="15" height="15"></i> Back
+          </button>
+          <button type="button" class="btn btn-primary" onclick="goToStep(3)">
+            Location <i data-lucide="arrow-right" width="15" height="15"></i>
+          </button>
+        </div>
+      </div>
+
+      <!-- ── Step 3: Location ── -->
+      <div class="create-panel" id="panel-3" style="display:none;">
+        <div class="create-panel-header">
+          <div class="create-panel-num">3</div>
+          <div>
+            <h3 class="create-panel-title">Location</h3>
+            <p class="create-panel-sub">Where will your event take place?</p>
+          </div>
+        </div>
+
+        <div class="create-toggle-card">
+          <div class="create-toggle-option" id="opt-physical" onclick="setLocType('physical')"
+            style="border-color:var(--color-primary);background:var(--color-primary-glow);">
+            <div style="font-size:28px;margin-bottom:6px;">🗺️</div>
+            <div style="font-size:13px;font-weight:700;">In-Person</div>
+            <div style="font-size:11px;color:var(--color-text-muted);margin-top:2px;">Physical venue</div>
+          </div>
+          <div class="create-toggle-option" id="opt-online" onclick="setLocType('online')">
+            <div style="font-size:28px;margin-bottom:6px;">💻</div>
+            <div style="font-size:13px;font-weight:700;">Online</div>
+            <div style="font-size:11px;color:var(--color-text-muted);margin-top:2px;">Virtual event</div>
+          </div>
+        </div>
+        <input type="hidden" name="is_online" id="is-online-val" value="">
+
+        <!-- Physical -->
+        <div id="physical-location">
+          <div class="form-group" style="position:relative;">
+            <label class="form-label">Venue Name</label>
+            <input type="text" name="location_name" class="form-control" id="loc-name-input"
+              placeholder="e.g. Central Park, Hyde Park…"
+              value="{{ data.location_name|default:'' }}"
+              oninput="onLocInput(this.value)"
+              autocomplete="off">
+            <div id="loc-suggestions" style="display:none;position:absolute;left:0;right:0;top:100%;z-index:30;background:var(--color-surface);border:1px solid var(--color-border);border-top:none;border-radius:0 0 var(--radius-sm) var(--radius-sm);overflow:hidden;box-shadow:var(--shadow-md);"></div>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Full Address</label>
+            <input type="text" name="address" class="form-control"
+              placeholder="Street, City, Country"
+              value="{{ data.address|default:'' }}">
+          </div>
+
+          <div style="padding:0 var(--space-6) var(--space-2);">
+            <div id="create-map" style="height:280px;border-radius:var(--radius-md);overflow:hidden;border:1px solid var(--color-border);"></div>
+            <div style="font-size:12px;color:var(--color-text-muted);margin-top:8px;display:flex;align-items:center;gap:4px;">
+              <i data-lucide="info" width="12" height="12"></i> Click the map or search above to pin the location
+            </div>
+          </div>
+          <input type="hidden" name="latitude" id="lat-input" value="{{ data.latitude|default:'' }}">
+          <input type="hidden" name="longitude" id="lng-input" value="{{ data.longitude|default:'' }}">
+
+          <div class="toggle-wrap">
+            <div class="toggle-info">
+              <h5>Indoor Event</h5>
+              <p>Event takes place inside a building</p>
+            </div>
+            <label class="toggle">
+              <input type="checkbox" name="is_indoor" id="is-indoor" checked>
+              <span class="toggle-slider"></span>
+            </label>
+          </div>
+        </div>
+
+        <!-- Online -->
+        <div id="online-location" style="display:none;">
+          <div class="form-group">
+            <label class="form-label">Meeting Link</label>
+            <input type="url" name="online_link" class="form-control"
+              placeholder="https://zoom.us/j/… or https://meet.google.com/…">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Platform</label>
+            <select name="location_name" class="form-control" id="platform-select" onchange="updateLocPreview()">
+              <option value="Zoom">Zoom</option>
+              <option value="Google Meet">Google Meet</option>
+              <option value="Microsoft Teams">Microsoft Teams</option>
+              <option value="Discord">Discord</option>
+              <option value="Twitch">Twitch</option>
+              <option value="Other">Other</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="create-panel-footer">
+          <button type="button" class="btn btn-surface" onclick="goToStep(2)">
+            <i data-lucide="arrow-left" width="15" height="15"></i> Back
+          </button>
+          <button type="button" class="btn btn-primary" onclick="goToStep(4)">
+            Settings <i data-lucide="arrow-right" width="15" height="15"></i>
+          </button>
+        </div>
+      </div>
+
+      <!-- ── Step 4: Settings ── -->
+      <div class="create-panel" id="panel-4" style="display:none;">
+        <div class="create-panel-header">
+          <div class="create-panel-num">4</div>
+          <div>
+            <h3 class="create-panel-title">Privacy & Settings</h3>
+            <p class="create-panel-sub">Control who can see and join your event</p>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">Visibility</label>
+          <div class="privacy-options-grid">
+            <label class="privacy-option-label">
+              <input type="radio" name="privacy" value="public" checked class="sr-only privacy-radio">
+              <div class="privacy-option-card" data-val="public" onclick="selectPrivacy('public')">
+                <div class="privacy-option-icon">🌐</div>
+                <div class="privacy-option-title">Public</div>
+                <div class="privacy-option-desc">Anyone can discover and join</div>
+              </div>
+            </label>
+            <label class="privacy-option-label">
+              <input type="radio" name="privacy" value="friends" class="sr-only privacy-radio">
+              <div class="privacy-option-card" data-val="friends" onclick="selectPrivacy('friends')">
+                <div class="privacy-option-icon">👥</div>
+                <div class="privacy-option-title">Friends</div>
+                <div class="privacy-option-desc">Only your friends can see</div>
+              </div>
+            </label>
+            <label class="privacy-option-label">
+              <input type="radio" name="privacy" value="private" class="sr-only privacy-radio">
+              <div class="privacy-option-card" data-val="private" onclick="selectPrivacy('private')">
+                <div class="privacy-option-icon">🔒</div>
+                <div class="privacy-option-title">Private</div>
+                <div class="privacy-option-desc">Invite-only, hidden from search</div>
+              </div>
+            </label>
+            <label class="privacy-option-label">
+              <input type="radio" name="privacy" value="password" class="sr-only privacy-radio">
+              <div class="privacy-option-card" data-val="password" onclick="selectPrivacy('password')">
+                <div class="privacy-option-icon">🔑</div>
+                <div class="privacy-option-title">Password</div>
+                <div class="privacy-option-desc">Requires a secret code</div>
+              </div>
+            </label>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">Price</label>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:var(--space-3);">
+            <label class="privacy-option-label">
+              <input type="radio" name="event_type" value="free" checked class="sr-only">
+              <div class="privacy-option-card" data-val="free" onclick="document.querySelector('[name=event_type][value=free]').checked=true;highlightCard(this);">
+                <div class="privacy-option-icon">🆓</div>
+                <div class="privacy-option-title">Free</div>
+              </div>
+            </label>
+            <label class="privacy-option-label">
+              <input type="radio" name="event_type" value="paid" class="sr-only">
+              <div class="privacy-option-card" data-val="paid" onclick="document.querySelector('[name=event_type][value=paid]').checked=true;highlightCard(this);">
+                <div class="privacy-option-icon">💳</div>
+                <div class="privacy-option-title">Paid</div>
+              </div>
+            </label>
+          </div>
+        </div>
+
+        <div class="form-grid-2">
+          <div class="form-group" style="margin-bottom:0;">
+            <label class="form-label">Capacity <span class="form-label-hint">(blank = unlimited)</span></label>
+            <input type="number" name="capacity" class="form-control" placeholder="50" min="1" max="100000">
+          </div>
+          <div class="form-group" style="margin-bottom:0;display:flex;align-items:flex-end;padding-bottom:2px;">
+            <div class="toggle-wrap" style="width:100%;margin:0;">
+              <div class="toggle-info">
+                <h5 style="font-size:13px;">Enable Waitlist</h5>
+                <p>Allow overflow registrations</p>
+              </div>
+              <label class="toggle">
+                <input type="checkbox" name="has_waitlist" checked>
+                <span class="toggle-slider"></span>
+              </label>
+            </div>
+          </div>
+        </div>
+
+        <div class="toggle-wrap">
+          <div class="toggle-info">
+            <h5>Require Approval</h5>
+            <p>Manually approve each join request</p>
+          </div>
+          <label class="toggle">
+            <input type="checkbox" name="requires_approval">
+            <span class="toggle-slider"></span>
+          </label>
+        </div>
+
+        <div class="create-panel-footer">
+          <button type="button" class="btn btn-surface" onclick="goToStep(3)">
+            <i data-lucide="arrow-left" width="15" height="15"></i> Back
+          </button>
+          <button type="button" class="btn btn-primary" onclick="goToStep(5)">
+            Review <i data-lucide="arrow-right" width="15" height="15"></i>
+          </button>
+        </div>
+      </div>
+
+      <!-- ── Step 5: Review & Publish ── -->
+      <div class="create-panel" id="panel-5" style="display:none;">
+        <div class="create-panel-header">
+          <div class="create-panel-num">5</div>
+          <div>
+            <h3 class="create-panel-title">Review & Publish</h3>
+            <p class="create-panel-sub">Everything look good? Go live!</p>
+          </div>
+        </div>
+
+        <div class="create-review-grid">
+          <div class="create-review-item">
+            <div class="create-review-label"><i data-lucide="type" width="12" height="12"></i> Title</div>
+            <div class="create-review-val" id="rv-title">—</div>
+          </div>
+          <div class="create-review-item">
+            <div class="create-review-label"><i data-lucide="tag" width="12" height="12"></i> Category</div>
+            <div class="create-review-val" id="rv-cat">—</div>
+          </div>
+          <div class="create-review-item">
+            <div class="create-review-label"><i data-lucide="calendar" width="12" height="12"></i> Start</div>
+            <div class="create-review-val" id="rv-start">—</div>
+          </div>
+          <div class="create-review-item">
+            <div class="create-review-label"><i data-lucide="clock" width="12" height="12"></i> End</div>
+            <div class="create-review-val" id="rv-end">—</div>
+          </div>
+          <div class="create-review-item">
+            <div class="create-review-label"><i data-lucide="map-pin" width="12" height="12"></i> Location</div>
+            <div class="create-review-val" id="rv-loc">—</div>
+          </div>
+          <div class="create-review-item">
+            <div class="create-review-label"><i data-lucide="globe" width="12" height="12"></i> Visibility</div>
+            <div class="create-review-val" id="rv-privacy">Public</div>
+          </div>
+          <div class="create-review-item">
+            <div class="create-review-label"><i data-lucide="dollar-sign" width="12" height="12"></i> Type</div>
+            <div class="create-review-val" id="rv-type">Free</div>
+          </div>
+          <div class="create-review-item">
+            <div class="create-review-label"><i data-lucide="users" width="12" height="12"></i> Capacity</div>
+            <div class="create-review-val" id="rv-capacity">Unlimited</div>
+          </div>
+        </div>
+
+        <div style="background:var(--color-primary-glow);border:1px solid rgba(64,255,167,0.2);border-radius:var(--radius-md);padding:var(--space-4);margin:0 var(--space-6) var(--space-4);display:flex;align-items:flex-start;gap:var(--space-3);">
+          <i data-lucide="info" width="15" height="15" style="color:var(--color-primary);flex-shrink:0;margin-top:1px;"></i>
+          <p style="font-size:13px;color:var(--color-text-muted);margin:0;">Publishing makes your event visible immediately. You can edit or cancel it at any time from your profile.</p>
+        </div>
+
+        <div class="create-panel-footer" style="flex-direction:column;gap:var(--space-3);align-items:stretch;">
+          <div style="display:flex;gap:var(--space-3);">
+            <button type="submit" name="action" value="draft" class="btn btn-surface" style="flex:1;justify-content:center;">
+              <i data-lucide="file" width="14" height="14"></i> Save as Draft
+            </button>
+            <button type="submit" name="action" value="publish" class="btn btn-primary" style="flex:1;justify-content:center;">
+              <i data-lucide="send" width="14" height="14"></i> Publish Event
+            </button>
+          </div>
+          <button type="button" class="btn btn-surface btn-sm" onclick="goToStep(4)" style="align-self:flex-start;">
+            <i data-lucide="arrow-left" width="13" height="13"></i> Back
+          </button>
+        </div>
+      </div>
+
+    </form>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+let currentStep = 1;
+let createMap = null;
+let createMarker = null;
+let locTimer;
+
+const subcats = JSON.parse(document.getElementById('subcat-data').textContent);
+
+// ── Step navigation ──
+function goToStep(n) {
+  if (n > currentStep && !validateStep(currentStep)) return;
+
+  document.getElementById('panel-' + currentStep).style.display = 'none';
+  document.getElementById('panel-' + n).style.display = 'block';
+
+  for (let i = 1; i <= 5; i++) {
+    const el = document.getElementById('step-' + i);
+    const line = document.getElementById('line-' + (i - 1));
+    el.className = i === n ? 'create-step active' : i < n ? 'create-step done' : 'create-step inactive';
+    if (line) line.className = 'create-step-line' + (i <= n ? ' done' : '');
+    // Update side mini-list
+    const mini = document.querySelectorAll('.create-step-mini')[i - 1];
+    if (mini) mini.className = 'create-step-mini' + (i === n ? ' active' : i < n ? ' done' : '');
+  }
+
+  currentStep = n;
+  if (n === 3 && !createMap) setTimeout(initCreateMap, 100);
+  if (n === 5) fillReview();
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+function validateStep(n) {
+  if (n === 1) {
+    const title = document.querySelector('[name="title"]').value.trim();
+    if (!title) { showToast('Please enter an event title.', 'error'); return false; }
+    if (!document.querySelector('[name="category"]:checked')) { showToast('Please choose a category.', 'error'); return false; }
+  }
+  if (n === 2) {
+    if (!document.querySelector('[name="start_datetime"]').value) { showToast('Please set a start date and time.', 'error'); return false; }
+  }
+  return true;
+}
+
+// ── Category ──
+function selectCategory(id, name, icon) {
+  document.querySelectorAll('.create-cat-card').forEach(c => c.classList.remove('active'));
+  document.querySelector(`.create-cat-card[data-id="${id}"]`)?.classList.add('active');
+  document.getElementById('preview-cat').textContent = name;
+  document.getElementById('preview-emoji').textContent = icon;
+
+  const subs = subcats[id] || [];
+  const sel = document.getElementById('subcat-select');
+  const grp = document.getElementById('subcat-group');
+  sel.innerHTML = '<option value="">Select subcategory…</option>';
+  if (subs.length) {
+    subs.forEach(s => sel.innerHTML += `<option value="${s.id}">${s.name}</option>`);
+    grp.style.display = 'block';
+  } else {
+    grp.style.display = 'none';
+  }
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+  const checked = document.querySelector('.cat-radio:checked');
+  if (checked) document.querySelector(`.create-cat-card[data-id="${checked.value}"]`)?.classList.add('active');
+  selectPrivacy('public');
+
+  const titleInput = document.getElementById('input-title');
+  const charCount = document.getElementById('title-chars');
+  titleInput.addEventListener('input', () => { charCount.textContent = titleInput.value.length; });
+  charCount.textContent = titleInput.value.length;
+});
+
+function updatePreviewTitle(val) {
+  document.getElementById('preview-title').textContent = val || 'Your event title';
+}
+
+// ── Cover image ──
+function handleCoverFile(file) {
+  if (!file) return;
+  if (file.size > 5 * 1024 * 1024) { showToast('Image must be under 5MB', 'error'); return; }
+  const reader = new FileReader();
+  reader.onload = e => {
+    const img = document.getElementById('cover-preview-img');
+    img.src = e.target.result; img.style.display = 'block';
+    document.getElementById('cover-placeholder-ui').style.display = 'none';
+    const prev = document.getElementById('preview-cover-img');
+    prev.src = e.target.result; prev.style.display = 'block';
+    document.getElementById('preview-placeholder').style.display = 'none';
+  };
+  reader.readAsDataURL(file);
+}
+
+function handleDrop(e) {
+  e.preventDefault();
+  document.getElementById('cover-drop').classList.remove('drag-over');
+  const file = e.dataTransfer.files[0];
+  if (file && file.type.startsWith('image/')) {
+    const dt = new DataTransfer(); dt.items.add(file);
+    document.getElementById('cover-input').files = dt.files;
+    handleCoverFile(file);
+  }
+}
+
+// ── Date ──
+function updateDatePreview() {
+  const val = document.getElementById('input-start').value;
+  if (val) {
+    const d = new Date(val);
+    document.getElementById('preview-date').textContent = d.toLocaleDateString('en-US', { weekday:'short', month:'short', day:'numeric', hour:'2-digit', minute:'2-digit' });
+  }
+  updateDuration();
+}
+
+function updateDuration() {
+  const start = document.getElementById('input-start').value;
+  const end = document.getElementById('input-end')?.value;
+  const disp = document.getElementById('duration-display');
+  if (start && end) {
+    const diff = new Date(end) - new Date(start);
+    if (diff > 0) {
+      const h = Math.floor(diff / 3600000), m = Math.floor((diff % 3600000) / 60000);
+      document.getElementById('duration-text').textContent = `Duration: ${h > 0 ? h + 'h ' : ''}${m > 0 ? m + 'm' : ''}`.trim();
+      disp.style.display = 'flex';
+      return;
+    }
+  }
+  disp.style.display = 'none';
+}
+
+// ── Location ──
+function setLocType(type) {
+  const isOnline = type === 'online';
+  document.getElementById('is-online-val').value = isOnline ? 'on' : '';
+  document.getElementById('physical-location').style.display = isOnline ? 'none' : 'block';
+  document.getElementById('online-location').style.display = isOnline ? 'block' : 'none';
+  const phys = document.getElementById('opt-physical');
+  const onl = document.getElementById('opt-online');
+  phys.style.borderColor = isOnline ? '' : 'var(--color-primary)';
+  phys.style.background = isOnline ? '' : 'var(--color-primary-glow)';
+  onl.style.borderColor = isOnline ? 'var(--color-primary)' : '';
+  onl.style.background = isOnline ? 'var(--color-primary-glow)' : '';
+  if (!isOnline && !createMap) setTimeout(initCreateMap, 100);
+}
+
+function onLocInput(val) {
+  clearTimeout(locTimer);
+  const box = document.getElementById('loc-suggestions');
+  if (val.length < 2) { box.style.display = 'none'; return; }
+  locTimer = setTimeout(() => {
+    fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(val)}&limit=5`)
+      .then(r => r.json()).then(data => {
+        if (!data.length) { box.style.display = 'none'; return; }
+        box.innerHTML = data.map(d => `
+          <div onclick="selectLocation('${d.display_name.replace(/\\/g,'\\\\').replace(/'/g,"\\'")}','${(d.display_name.split(',')[0]||'').replace(/\\/g,'\\\\').replace(/'/g,"\\'")}',${d.lat},${d.lon})"
+            style="padding:10px 14px;cursor:pointer;font-size:13px;border-bottom:1px solid var(--color-border);"
+            onmouseover="this.style.background='var(--color-surface-2)'" onmouseout="this.style.background=''">
+            📍 ${d.display_name}
+          </div>`).join('');
+        box.style.display = 'block';
+      });
+  }, 400);
+}
+
+function selectLocation(address, name, lat, lng) {
+  document.getElementById('loc-name-input').value = name;
+  document.querySelector('[name="address"]').value = address;
+  document.getElementById('lat-input').value = lat;
+  document.getElementById('lng-input').value = lng;
+  document.getElementById('loc-suggestions').style.display = 'none';
+  document.getElementById('preview-loc').textContent = name;
+  if (createMap) { createMap.setView([lat, lng], 15); addCreateMarker(lat, lng); }
+}
+
+function updateLocPreview() {
+  const val = document.getElementById('platform-select')?.value || 'Online';
+  document.getElementById('preview-loc').textContent = val;
+}
+
+function initCreateMap() {
+  const lat = parseFloat(document.getElementById('lat-input').value) || 51.505;
+  const lng = parseFloat(document.getElementById('lng-input').value) || -0.09;
+  createMap = L.map('create-map', { zoomControl: false }).setView([lat, lng], 13);
+  L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', { subdomains: 'abcd', maxZoom: 19 }).addTo(createMap);
+  L.control.zoom({ position: 'bottomright' }).addTo(createMap);
+  if (document.getElementById('lat-input').value) addCreateMarker(lat, lng);
+  createMap.on('click', e => {
+    addCreateMarker(e.latlng.lat, e.latlng.lng);
+    fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${e.latlng.lat}&lon=${e.latlng.lng}`)
+      .then(r => r.json()).then(d => {
+        if (d.display_name) {
+          document.querySelector('[name="address"]').value = d.display_name;
+          if (!document.getElementById('loc-name-input').value) {
+            document.getElementById('loc-name-input').value = d.display_name.split(',').slice(0, 2).join(',').trim();
+          }
+          document.getElementById('preview-loc').textContent = d.display_name.split(',')[0];
+        }
+      });
+  });
+  setTimeout(() => createMap.invalidateSize(), 200);
+}
+
+function addCreateMarker(lat, lng) {
+  if (createMarker) createMarker.remove();
+  createMarker = L.marker([lat, lng], {
+    icon: L.divIcon({
+      html: '<div style="width:22px;height:22px;background:#40FFA7;border-radius:50%;border:3px solid #fff;box-shadow:0 2px 12px rgba(64,255,167,0.7);"></div>',
+      className: '', iconSize: [22, 22], iconAnchor: [11, 11],
+    }),
+    draggable: true,
+  }).addTo(createMap);
+  createMarker.on('dragend', e => {
+    const p = e.target.getLatLng();
+    document.getElementById('lat-input').value = p.lat;
+    document.getElementById('lng-input').value = p.lng;
+  });
+  document.getElementById('lat-input').value = lat;
+  document.getElementById('lng-input').value = lng;
+}
+
+// ── Privacy ──
+function selectPrivacy(val) {
+  document.querySelectorAll('.privacy-option-card').forEach(c => c.classList.remove('selected'));
+  document.querySelector(`.privacy-option-card[data-val="${val}"]`)?.classList.add('selected');
+  const radio = document.querySelector(`[name="privacy"][value="${val}"]`);
+  if (radio) radio.checked = true;
+}
+
+function highlightCard(card) {
+  card.closest('.form-group').querySelectorAll('.privacy-option-card').forEach(c => c.classList.remove('selected'));
+  card.classList.add('selected');
+}
+
+// ── Review ──
+function fillReview() {
+  const get = n => document.querySelector(`[name="${n}"]`)?.value || '';
+  const getChecked = n => document.querySelector(`[name="${n}"]:checked`)?.value || '';
+  document.getElementById('rv-title').textContent = get('title') || '(untitled)';
+  const catEl = document.querySelector('.cat-radio:checked');
+  document.getElementById('rv-cat').textContent = catEl
+    ? document.querySelector(`.create-cat-card[data-id="${catEl.value}"] .create-cat-name`)?.textContent || '—' : '—';
+  const start = get('start_datetime');
+  document.getElementById('rv-start').textContent = start ? new Date(start).toLocaleString() : '—';
+  const end = get('end_datetime');
+  document.getElementById('rv-end').textContent = end ? new Date(end).toLocaleString() : 'Not set';
+  document.getElementById('rv-loc').textContent =
+    get('location_name') || get('address') || (get('is_online') ? 'Online' : '—');
+  document.getElementById('rv-privacy').textContent = getChecked('privacy') || 'Public';
+  document.getElementById('rv-type').textContent = getChecked('event_type') || 'Free';
+  const cap = get('capacity');
+  document.getElementById('rv-capacity').textContent = cap ? `${cap} people` : 'Unlimited';
+}
+
+// Close dropdowns on outside click
+document.addEventListener('click', e => {
+  if (!e.target.closest('#loc-name-input') && !e.target.closest('#loc-suggestions'))
+    document.getElementById('loc-suggestions').style.display = 'none';
+});
+</script>
+{% endblock %}

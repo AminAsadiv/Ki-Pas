@@ -1,0 +1,13 @@
+django>=5.0
+djangorestframework
+djangorestframework-simplejwt
+channels[daphne]
+django-cors-headers
+django-storages
+geopy
+python-decouple
+django-filter
+drf-spectacular
+Pillow
+psycopg2-binary
+django-extensions

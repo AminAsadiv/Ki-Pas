@@ -1,0 +1,673 @@
+{% extends 'base.html' %}
+{% block title %}{{ event.title }} — KIPAS{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+{% endblock %}
+
+{% block content %}
+
+<!-- ═══ HERO ═══ -->
+<div class="event-detail-hero">
+  {% if event.cover_image %}
+  <img src="{{ event.cover_image.url }}" class="event-detail-cover" alt="{{ event.title }}">
+  {% else %}
+  <div class="event-detail-cover-placeholder"
+    style="{% if event.category.color %}background:linear-gradient(135deg,{{ event.category.color }}33,{{ event.category.color }}99,#050761);{% endif %}">
+    <span class="event-detail-cover-emoji">{{ event.category.icon|default:"📍" }}</span>
+  </div>
+  {% endif %}
+  <div class="event-detail-hero-overlay"></div>
+
+  <div class="event-detail-hero-content">
+    <!-- Badges row -->
+    <div class="event-detail-badges">
+      {% if event.category %}
+      <span class="edetail-badge primary">
+        {{ event.category.icon|default:"" }} {{ event.category.name }}
+      </span>
+      {% endif %}
+      {% if event.event_type == 'free' %}
+      <span class="edetail-badge free">FREE</span>
+      {% endif %}
+      {% if event.status == 'cancelled' %}
+      <span class="edetail-badge cancelled">Cancelled</span>
+      {% elif event.status == 'past' %}
+      <span class="edetail-badge past">Past</span>
+      {% endif %}
+      <span class="edetail-badge privacy">
+        {% if event.privacy == 'public' %}🌐 Public
+        {% elif event.privacy == 'friends' %}👥 Friends only
+        {% elif event.privacy == 'private' %}🔒 Private
+        {% else %}🔑 Password{% endif %}
+      </span>
+    </div>
+
+    <h1 class="event-detail-title">{{ event.title }}</h1>
+
+    <div class="event-detail-meta-row">
+      <div class="event-detail-meta-item">
+        <i data-lucide="calendar" width="14" height="14"></i>
+        <span>{{ event.start_datetime|date:"D, M j, Y · g:i A" }}</span>
+      </div>
+      {% if event.location_name %}
+      <div class="event-detail-meta-item">
+        <i data-lucide="map-pin" width="14" height="14"></i>
+        <span>{{ event.location_name }}</span>
+      </div>
+      {% elif event.is_online %}
+      <div class="event-detail-meta-item">
+        <i data-lucide="video" width="14" height="14"></i>
+        <span>Online Event</span>
+      </div>
+      {% endif %}
+      <div class="event-detail-meta-item">
+        <i data-lucide="users" width="14" height="14"></i>
+        <span>{{ participant_count }} attending{% if event.capacity %} · {{ event.capacity }} capacity{% endif %}</span>
+      </div>
+      <div class="event-detail-meta-item">
+        <i data-lucide="eye" width="14" height="14"></i>
+        <span>{{ event.view_count }} views</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ STICKY ACTION BAR ═══ -->
+<div class="event-action-bar-wrap" id="action-bar">
+  <div class="event-action-bar">
+    <!-- Primary action -->
+    <div class="event-action-primary">
+      {% if user.is_authenticated %}
+        {% if user == event.host %}
+        <a href="/events/{{ event.pk }}/edit/" class="btn btn-surface">
+          <i data-lucide="edit-2" width="14" height="14"></i> Edit Event
+        </a>
+        <form method="post" action="/events/{{ event.pk }}/delete/" style="display:inline;">
+          {% csrf_token %}
+          <button type="submit" class="btn btn-danger-outline" onclick="return confirm('Delete this event permanently?')">
+            <i data-lucide="trash-2" width="14" height="14"></i> Delete
+          </button>
+        </form>
+        {% elif user_joined %}
+        <form method="post" action="/events/{{ event.pk }}/leave/" style="display:inline;">
+          {% csrf_token %}
+          <button type="submit" class="btn btn-surface"
+            onclick="return confirm('Leave this event?')">
+            <i data-lucide="log-out" width="14" height="14"></i> Leave Event
+          </button>
+        </form>
+        {% elif user_participant and user_participant.status == 'waitlist' %}
+        <button class="btn btn-surface" disabled>
+          <i data-lucide="clock" width="14" height="14"></i> On Waitlist
+        </button>
+        {% elif user_participant and user_participant.status == 'pending' %}
+        <button class="btn btn-surface" disabled>
+          <i data-lucide="clock" width="14" height="14"></i> Pending Approval
+        </button>
+        {% elif event.status == 'published' %}
+        <button class="btn btn-primary" onclick="joinEvent({{ event.pk }}, this)" id="join-btn">
+          <i data-lucide="user-plus" width="14" height="14"></i>
+          {% if event.is_full and event.has_waitlist %}Join Waitlist
+          {% elif event.requires_approval %}Request to Join
+          {% else %}Join Event{% endif %}
+        </button>
+        {% endif %}
+      {% else %}
+      <a href="/accounts/login/?next=/events/{{ event.pk }}/" class="btn btn-primary">
+        <i data-lucide="user-plus" width="14" height="14"></i> Join Event
+      </a>
+      {% endif %}
+    </div>
+
+    <!-- Secondary actions -->
+    <div class="event-action-secondary">
+      <button class="btn btn-surface {% if user_liked %}btn-active-like{% endif %}" onclick="likeEvent({{ event.pk }}, this)" id="like-btn">
+        <i data-lucide="heart" width="14" height="14"></i>
+        <span class="like-count">{{ event.like_count }}</span>
+      </button>
+      <button class="btn btn-surface {% if user_saved %}btn-active-save{% endif %}" onclick="saveEvent({{ event.pk }}, this)" id="save-btn">
+        <i data-lucide="bookmark" width="14" height="14"></i>
+        <span>{% if user_saved %}Saved{% else %}Save{% endif %}</span>
+      </button>
+      <button class="btn btn-surface" onclick="shareEvent()">
+        <i data-lucide="share-2" width="14" height="14"></i>
+        <span>Share</span>
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ BODY ═══ -->
+<div class="event-detail-body">
+
+  <!-- ─ LEFT / MAIN ─ -->
+  <div class="event-detail-main">
+
+    <!-- Info grid -->
+    <div class="event-info-grid">
+      <div class="event-info-item">
+        <div class="event-info-icon"><i data-lucide="calendar" width="16" height="16"></i></div>
+        <div>
+          <div class="event-info-label">Date &amp; Time</div>
+          <div class="event-info-value">{{ event.start_datetime|date:"D, M j, Y" }}</div>
+          <div class="event-info-sub">
+            {{ event.start_datetime|date:"g:i A" }}{% if event.end_datetime %} – {{ event.end_datetime|date:"g:i A" }}{% endif %}
+            {% if event.timezone %}<span style="opacity:0.6;"> {{ event.timezone }}</span>{% endif %}
+          </div>
+        </div>
+      </div>
+      <div class="event-info-item">
+        <div class="event-info-icon"><i data-lucide="map-pin" width="16" height="16"></i></div>
+        <div>
+          <div class="event-info-label">Location</div>
+          {% if event.is_online %}
+          <div class="event-info-value">Online Event</div>
+          {% if event.online_link %}
+          <a href="{{ event.online_link }}" target="_blank" rel="noopener" class="event-info-link">Join Link →</a>
+          {% endif %}
+          {% elif event.location_name %}
+          <div class="event-info-value">{{ event.location_name }}</div>
+          {% if event.address %}<div class="event-info-sub">{{ event.address }}</div>{% endif %}
+          {% else %}
+          <div class="event-info-value" style="color:var(--color-text-muted);">TBD</div>
+          {% endif %}
+        </div>
+      </div>
+      <div class="event-info-item">
+        <div class="event-info-icon"><i data-lucide="users" width="16" height="16"></i></div>
+        <div style="flex:1;">
+          <div class="event-info-label">Attendees</div>
+          <div class="event-info-value">
+            {{ participant_count }}{% if event.capacity %} / {{ event.capacity }}{% endif %}
+            {% if event.is_full %}<span class="badge badge-danger" style="font-size:10px;margin-left:6px;">Full</span>{% endif %}
+          </div>
+          {% if event.capacity %}
+          <div class="capacity-bar" style="margin-top:6px;">
+            <div class="capacity-fill {% if capacity_pct >= 100 %}danger{% elif capacity_pct >= 80 %}warning{% endif %}"
+              style="width:{{ capacity_pct }}%;"></div>
+          </div>
+          {% endif %}
+          {% if event.has_waitlist and event.is_full %}
+          <div class="event-info-sub">Waitlist: {{ waitlist|length }} waiting</div>
+          {% endif %}
+        </div>
+      </div>
+      <div class="event-info-item">
+        <div class="event-info-icon"><i data-lucide="tag" width="16" height="16"></i></div>
+        <div>
+          <div class="event-info-label">Price</div>
+          <div class="event-info-value">{{ event.get_event_type_display }}</div>
+          {% if event.requires_approval %}<div class="event-info-sub">Approval required</div>{% endif %}
+          {% if event.registration_deadline %}<div class="event-info-sub">Deadline: {{ event.registration_deadline|date:"M j, Y" }}</div>{% endif %}
+        </div>
+      </div>
+    </div>
+
+    <!-- Tabs -->
+    <div class="event-tabs">
+      <button class="event-tab-btn active" onclick="switchEventTab('overview', this)">
+        <i data-lucide="file-text" width="13" height="13"></i> Overview
+      </button>
+      <button class="event-tab-btn" onclick="switchEventTab('participants', this)">
+        <i data-lucide="users" width="13" height="13"></i> Participants
+        <span class="event-tab-count">{{ participant_count }}</span>
+      </button>
+      <button class="event-tab-btn" onclick="switchEventTab('gallery', this)">
+        <i data-lucide="image" width="13" height="13"></i> Gallery
+        <span class="event-tab-count">{{ gallery|length }}</span>
+      </button>
+      <button class="event-tab-btn" onclick="switchEventTab('reviews', this)">
+        <i data-lucide="star" width="13" height="13"></i> Reviews
+        <span class="event-tab-count">{{ reviews|length }}</span>
+      </button>
+      {% if user.is_authenticated %}
+      <button class="event-tab-btn" onclick="switchEventTab('chat', this)">
+        <i data-lucide="message-circle" width="13" height="13"></i> Chat
+      </button>
+      {% endif %}
+    </div>
+
+    <!-- ── Overview ── -->
+    <div id="event-tab-overview">
+      <div class="event-description">{{ event.description|linebreaksbr }}</div>
+
+      {% if event.rules %}
+      <div class="event-rules-card">
+        <h5><i data-lucide="clipboard-list" width="15" height="15" style="color:var(--color-primary);"></i> Event Rules</h5>
+        <div class="event-rules-body">{{ event.rules|linebreaksbr }}</div>
+      </div>
+      {% endif %}
+
+      {% if event.tags.exists %}
+      <div class="event-tags-row">
+        {% for tag in event.tags.all %}
+        <a href="/search/?q={{ tag.name }}" class="event-tag">#{{ tag.name }}</a>
+        {% endfor %}
+      </div>
+      {% endif %}
+
+      {% if co_hosts %}
+      <div class="event-cohosts">
+        <h5 class="event-section-label">Co-Hosts</h5>
+        <div class="event-cohosts-list">
+          {% for ch in co_hosts %}
+          <a href="/profile/{{ ch.user.username }}/" class="event-cohost-card">
+            {% if ch.user.profile.avatar %}
+            <img src="{{ ch.user.profile.avatar.url }}" class="avatar avatar-sm" alt="{{ ch.user.username }}">
+            {% else %}
+            <div class="avatar-placeholder avatar-sm" style="font-size:13px;">{{ ch.user.username|first|upper }}</div>
+            {% endif %}
+            <div>
+              <div style="font-size:13px;font-weight:600;">{{ ch.user.username }}</div>
+              <div style="font-size:11px;color:var(--color-text-muted);">{{ ch.get_role_display }}</div>
+            </div>
+          </a>
+          {% endfor %}
+        </div>
+      </div>
+      {% endif %}
+    </div>
+
+    <!-- ── Participants ── -->
+    <div id="event-tab-participants" style="display:none;">
+      {% if participants %}
+      <div class="participants-grid">
+        {% for p in participants %}
+        <a href="/profile/{{ p.user.username }}/" class="participant-card">
+          <div class="participant-avatar-wrap">
+            {% if p.user.profile.avatar %}
+            <img src="{{ p.user.profile.avatar.url }}" class="avatar avatar-md" alt="{{ p.user.username }}">
+            {% else %}
+            <div class="avatar-placeholder avatar-md" style="font-size:18px;">{{ p.user.username|first|upper }}</div>
+            {% endif %}
+            {% if p.checked_in %}<span class="participant-checkin-badge">✓</span>{% endif %}
+          </div>
+          <div class="participant-name">{{ p.user.username }}</div>
+          {% if p.checked_in %}<div class="participant-status-label">Checked in</div>{% endif %}
+        </a>
+        {% endfor %}
+      </div>
+      {% if user == event.host %}
+      <div class="event-host-checkin-panel">
+        <div style="font-size:13px;font-weight:700;margin-bottom:4px;">Check-in Management</div>
+        <p style="font-size:13px;color:var(--color-text-muted);margin-bottom:var(--space-3);">Mark participants as checked in when they arrive.</p>
+        <form method="post" action="/events/{{ event.pk }}/checkin/" style="display:inline;">
+          {% csrf_token %}
+          <button type="submit" class="btn btn-primary btn-sm">
+            <i data-lucide="qr-code" width="13" height="13"></i> Check Me In
+          </button>
+        </form>
+      </div>
+      {% endif %}
+      {% else %}
+      <div class="event-tab-empty">
+        <i data-lucide="users" width="48" height="48"></i>
+        <h3>No participants yet</h3>
+        <p>Be the first to join this event!</p>
+      </div>
+      {% endif %}
+    </div>
+
+    <!-- ── Gallery ── -->
+    <div id="event-tab-gallery" style="display:none;">
+      {% if gallery %}
+      <div class="gallery-grid">
+        {% for photo in gallery %}
+        <div class="gallery-item" onclick="openGallery('{{ photo.image.url }}', {{ forloop.counter0 }})">
+          <img src="{{ photo.image.url }}" alt="{{ photo.caption|default:'Photo' }}" loading="lazy">
+          <div class="gallery-item-overlay">
+            <i data-lucide="zoom-in" width="20" height="20"></i>
+          </div>
+        </div>
+        {% endfor %}
+      </div>
+      {% else %}
+      <div class="event-tab-empty">
+        <i data-lucide="image" width="48" height="48"></i>
+        <h3>No photos yet</h3>
+        <p>Photos from the event will appear here after it takes place.</p>
+      </div>
+      {% endif %}
+    </div>
+
+    <!-- ── Reviews ── -->
+    <div id="event-tab-reviews" style="display:none;">
+      {% if reviews %}
+      {% if avg_rating %}
+      <div class="event-rating-summary">
+        <div class="event-rating-score">{{ avg_rating }}</div>
+        <div>
+          <div class="star-rating" style="margin-bottom:4px;">
+            {% for i in "12345" %}
+            <span class="star {% if forloop.counter <= avg_rating %}filled{% endif %}">★</span>
+            {% endfor %}
+          </div>
+          <div style="font-size:12px;color:var(--color-text-muted);">{{ reviews|length }} review{{ reviews|length|pluralize }}</div>
+        </div>
+      </div>
+      {% endif %}
+      {% for review in reviews %}
+      <div class="review-card">
+        <div class="review-card-header">
+          <a href="/profile/{{ review.reviewer.username }}/">
+            {% if review.reviewer.profile.avatar %}
+            <img src="{{ review.reviewer.profile.avatar.url }}" class="avatar avatar-sm" alt="">
+            {% else %}
+            <div class="avatar-placeholder avatar-sm" style="font-size:13px;">{{ review.reviewer.username|first|upper }}</div>
+            {% endif %}
+          </a>
+          <div style="flex:1;min-width:0;">
+            <a href="/profile/{{ review.reviewer.username }}/" style="font-size:14px;font-weight:600;color:var(--color-text);text-decoration:none;">{{ review.reviewer.username }}</a>
+            <div class="star-rating" style="margin-top:2px;">
+              {% for i in "12345" %}
+              <span class="star {% if forloop.counter <= review.rating %}filled{% endif %}">★</span>
+              {% endfor %}
+            </div>
+          </div>
+          <span style="font-size:12px;color:var(--color-text-muted);">{{ review.created_at|date:"M j, Y" }}</span>
+        </div>
+        <p style="font-size:14px;color:var(--color-text-secondary);line-height:1.7;margin-top:var(--space-3);">{{ review.comment }}</p>
+      </div>
+      {% endfor %}
+      {% else %}
+      <div class="event-tab-empty">
+        <i data-lucide="star" width="48" height="48"></i>
+        <h3>No reviews yet</h3>
+        <p>Attendees can leave reviews after the event ends.</p>
+      </div>
+      {% endif %}
+    </div>
+
+    <!-- ── Chat ── -->
+    {% if user.is_authenticated %}
+    <div id="event-tab-chat" style="display:none;">
+      <div class="event-chat-wrap">
+        <div class="event-chat-messages" id="event-messages">
+          <div class="event-chat-welcome">
+            <i data-lucide="message-circle" width="36" height="36" style="opacity:0.25;margin-bottom:var(--space-2);"></i>
+            <p>Welcome to the event chat — connect with other attendees!</p>
+          </div>
+        </div>
+        <div class="event-chat-input-row">
+          {% if user_joined or user == event.host %}
+          {% if user.profile.avatar %}
+          <img src="{{ user.profile.avatar.url }}" class="avatar avatar-xs" alt="">
+          {% else %}
+          <div class="avatar-placeholder avatar-xs" style="font-size:10px;">{{ user.username|first|upper }}</div>
+          {% endif %}
+          <input type="text" id="event-chat-input" class="form-control" placeholder="Say something…"
+            style="margin-bottom:0;" onkeydown="if(event.key==='Enter')sendEventMsg()">
+          <button class="btn btn-primary btn-sm" onclick="sendEventMsg()">
+            <i data-lucide="send" width="14" height="14"></i>
+          </button>
+          {% else %}
+          <p style="font-size:13px;color:var(--color-text-muted);text-align:center;width:100%;">
+            Join the event to participate in the chat.
+          </p>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+    {% endif %}
+
+  </div>
+
+  <!-- ─ RIGHT SIDEBAR ─ -->
+  <div class="event-detail-sidebar">
+
+    <!-- Countdown -->
+    <div class="event-countdown" id="countdown-widget">
+      <div class="event-countdown-label">
+        <span class="countdown-pulse"></span>
+        Event starts in
+      </div>
+      <div class="event-countdown-units">
+        <div class="event-countdown-unit">
+          <div class="event-countdown-num" id="cd-days">--</div>
+          <div class="event-countdown-unit-label">Days</div>
+        </div>
+        <div class="event-countdown-sep">:</div>
+        <div class="event-countdown-unit">
+          <div class="event-countdown-num" id="cd-hrs">--</div>
+          <div class="event-countdown-unit-label">Hrs</div>
+        </div>
+        <div class="event-countdown-sep">:</div>
+        <div class="event-countdown-unit">
+          <div class="event-countdown-num" id="cd-min">--</div>
+          <div class="event-countdown-unit-label">Min</div>
+        </div>
+        <div class="event-countdown-sep">:</div>
+        <div class="event-countdown-unit">
+          <div class="event-countdown-num" id="cd-sec">--</div>
+          <div class="event-countdown-unit-label">Sec</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Host card -->
+    <div class="host-card">
+      <div class="host-card-label">Hosted by</div>
+      <a href="/profile/{{ event.host.username }}/" class="host-card-user">
+        <div style="position:relative;flex-shrink:0;">
+          {% if event.host.profile.avatar %}
+          <img src="{{ event.host.profile.avatar.url }}" class="avatar avatar-lg" alt="{{ event.host.username }}">
+          {% else %}
+          <div class="avatar-placeholder avatar-lg" style="font-size:22px;">{{ event.host.username|first|upper }}</div>
+          {% endif %}
+          {% if event.host.profile.is_online %}<span class="host-online-dot"></span>{% endif %}
+        </div>
+        <div class="host-card-info">
+          <div class="host-card-name">{{ event.host.profile.full_name|default:event.host.username }}</div>
+          <div class="host-card-handle">@{{ event.host.username }}</div>
+          <span class="level-badge" style="font-size:10px;margin-top:4px;display:inline-block;">
+            Lv{{ event.host.profile.level }} · {{ event.host.profile.level_title }}
+          </span>
+        </div>
+      </a>
+      <div class="host-stats">
+        <div class="host-stat">
+          <div class="host-stat-value">{{ host_event_count }}</div>
+          <div class="host-stat-label">Events</div>
+        </div>
+        <div class="host-stat">
+          <div class="host-stat-value" style="color:#FFD700;">
+            {{ event.host.profile.reputation_score|floatformat:1|default:"—" }}
+          </div>
+          <div class="host-stat-label">Rating</div>
+        </div>
+        <div class="host-stat">
+          <div class="host-stat-value">{{ event.host.profile.joined_events_count }}</div>
+          <div class="host-stat-label">Joined</div>
+        </div>
+      </div>
+      {% if user.is_authenticated and user != event.host %}
+      <button class="btn btn-outline" style="width:100%;justify-content:center;" onclick="followUser('{{ event.host.username }}', this)">
+        <i data-lucide="rss" width="13" height="13"></i> Follow Host
+      </button>
+      {% endif %}
+    </div>
+
+    <!-- Mini map -->
+    {% if event.latitude and event.longitude %}
+    <div class="event-mini-map-card">
+      <div id="event-mini-map"></div>
+      <div class="event-mini-map-footer">
+        <i data-lucide="map-pin" width="13" height="13" style="color:var(--color-primary);flex-shrink:0;"></i>
+        <span>{{ event.location_name|default:event.address|truncatechars:40 }}</span>
+      </div>
+      <div style="padding:0 var(--space-3) var(--space-3);">
+        <a href="/events/map/?lat={{ event.latitude }}&lng={{ event.longitude }}" class="btn btn-surface btn-sm" style="width:100%;justify-content:center;">
+          <i data-lucide="map" width="13" height="13"></i> View on Map
+        </a>
+      </div>
+    </div>
+    {% endif %}
+
+    <!-- Stats -->
+    <div class="event-stats-card">
+      <div class="event-stats-title">Event Stats</div>
+      <div class="event-stats-list">
+        <div class="event-stats-row">
+          <span><i data-lucide="eye" width="13" height="13"></i> Views</span>
+          <strong>{{ event.view_count }}</strong>
+        </div>
+        <div class="event-stats-row">
+          <span><i data-lucide="heart" width="13" height="13"></i> Likes</span>
+          <strong id="stat-likes">{{ event.like_count }}</strong>
+        </div>
+        <div class="event-stats-row">
+          <span><i data-lucide="bookmark" width="13" height="13"></i> Saves</span>
+          <strong>{{ event.save_count }}</strong>
+        </div>
+        <div class="event-stats-row">
+          <span><i data-lucide="users" width="13" height="13"></i> Attending</span>
+          <strong>{{ participant_count }}</strong>
+        </div>
+        {% if event.capacity %}
+        <div class="event-stats-row">
+          <span><i data-lucide="percent" width="13" height="13"></i> Capacity</span>
+          <strong>{{ capacity_pct }}%</strong>
+        </div>
+        {% endif %}
+      </div>
+    </div>
+
+    <!-- Related events -->
+    {% if related_events %}
+    <div class="event-related-card">
+      <div class="event-related-title">More like this</div>
+      {% for rel in related_events %}
+      <a href="/events/{{ rel.pk }}/" class="related-event-row">
+        {% if rel.cover_image %}
+        <img src="{{ rel.cover_image.url }}" class="related-event-img" alt="{{ rel.title }}">
+        {% else %}
+        <div class="related-event-img related-event-img-placeholder">{{ rel.category.icon|default:"📍" }}</div>
+        {% endif %}
+        <div class="related-event-info">
+          <div class="related-event-title">{{ rel.title|truncatechars:36 }}</div>
+          <div class="related-event-meta">
+            {{ rel.start_datetime|date:"M j" }} · {{ rel.participant_count }} going
+          </div>
+        </div>
+      </a>
+      {% endfor %}
+    </div>
+    {% endif %}
+
+  </div>
+</div>
+
+<!-- Lightbox -->
+<div id="gallery-lightbox" style="display:none;position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,0.96);flex-direction:column;align-items:center;justify-content:center;cursor:zoom-out;" onclick="this.style.display='none'">
+  <img id="lightbox-img" style="max-width:92vw;max-height:88vh;object-fit:contain;border-radius:8px;">
+  <div id="lightbox-caption" style="margin-top:16px;font-size:13px;color:rgba(255,255,255,0.5);"></div>
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+// ── Tab switching ──
+function switchEventTab(name, btn) {
+  document.querySelectorAll('[id^="event-tab-"]').forEach(el => el.style.display = 'none');
+  document.querySelectorAll('.event-tab-btn').forEach(b => b.classList.remove('active'));
+  const panel = document.getElementById('event-tab-' + name);
+  if (panel) panel.style.display = 'block';
+  if (btn) btn.classList.add('active');
+}
+
+// ── Mini map ──
+{% if event.latitude and event.longitude %}
+document.addEventListener('DOMContentLoaded', () => {
+  const miniMap = L.map('event-mini-map', {
+    zoomControl: false, attributionControl: false,
+    dragging: false, scrollWheelZoom: false, doubleClickZoom: false,
+  }).setView([{{ event.latitude }}, {{ event.longitude }}], 15);
+  L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+    subdomains: 'abcd', maxZoom: 19
+  }).addTo(miniMap);
+  const icon = L.divIcon({
+    html: '<div style="width:14px;height:14px;background:#40FFA7;border-radius:50%;border:3px solid #fff;box-shadow:0 0 12px rgba(64,255,167,0.8);"></div>',
+    className: '', iconSize: [14,14], iconAnchor: [7,7],
+  });
+  L.marker([{{ event.latitude }}, {{ event.longitude }}], { icon }).addTo(miniMap);
+});
+{% endif %}
+
+// ── Countdown timer ──
+{% if event.start_datetime %}
+const eventStart = new Date('{{ event.start_datetime|date:"c" }}');
+function updateCountdown() {
+  const diff = eventStart - new Date();
+  const widget = document.getElementById('countdown-widget');
+  if (diff <= 0) {
+    widget.innerHTML = '<div class="event-countdown-live">🎉 This event is happening now!</div>';
+    return;
+  }
+  const days = Math.floor(diff / 86400000);
+  const hrs = Math.floor((diff % 86400000) / 3600000);
+  const min = Math.floor((diff % 3600000) / 60000);
+  const sec = Math.floor((diff % 60000) / 1000);
+  document.getElementById('cd-days').textContent = String(days).padStart(2, '0');
+  document.getElementById('cd-hrs').textContent = String(hrs).padStart(2, '0');
+  document.getElementById('cd-min').textContent = String(min).padStart(2, '0');
+  document.getElementById('cd-sec').textContent = String(sec).padStart(2, '0');
+}
+updateCountdown();
+setInterval(updateCountdown, 1000);
+{% endif %}
+
+// ── Gallery lightbox ──
+{% if gallery %}
+const galleryUrls = [{% for photo in gallery %}'{{ photo.image.url }}'{% if not forloop.last %},{% endif %}{% endfor %}];
+let currentGalleryIdx = 0;
+function openGallery(url, idx) {
+  currentGalleryIdx = idx;
+  document.getElementById('lightbox-img').src = url;
+  document.getElementById('lightbox-caption').textContent = (idx + 1) + ' / ' + galleryUrls.length;
+  document.getElementById('gallery-lightbox').style.display = 'flex';
+}
+document.addEventListener('keydown', e => {
+  const lb = document.getElementById('gallery-lightbox');
+  if (lb.style.display !== 'flex') return;
+  if (e.key === 'Escape') lb.style.display = 'none';
+  if (e.key === 'ArrowRight') openGallery(galleryUrls[(currentGalleryIdx + 1) % galleryUrls.length], (currentGalleryIdx + 1) % galleryUrls.length);
+  if (e.key === 'ArrowLeft') openGallery(galleryUrls[(currentGalleryIdx - 1 + galleryUrls.length) % galleryUrls.length], (currentGalleryIdx - 1 + galleryUrls.length) % galleryUrls.length);
+});
+{% endif %}
+
+// ── Event chat ──
+function sendEventMsg() {
+  const input = document.getElementById('event-chat-input');
+  if (!input || !input.value.trim()) return;
+  const container = document.getElementById('event-messages');
+  const div = document.createElement('div');
+  div.style.cssText = 'display:flex;justify-content:flex-end;margin-bottom:6px;';
+  div.innerHTML = `<div style="background:var(--color-primary);color:#050761;padding:10px 14px;border-radius:18px;border-bottom-right-radius:4px;font-size:14px;max-width:70%;font-weight:500;">${input.value.trim().replace(/</g,'&lt;')}</div>`;
+  const welcome = container.querySelector('.event-chat-welcome');
+  if (welcome) welcome.remove();
+  container.appendChild(div);
+  container.scrollTop = container.scrollHeight;
+  input.value = '';
+}
+
+// ── Share ──
+function shareEvent() {
+  const url = window.location.href;
+  if (navigator.share) {
+    navigator.share({ title: '{{ event.title|escapejs }}', url });
+  } else if (navigator.clipboard) {
+    navigator.clipboard.writeText(url).then(() => showToast('Link copied to clipboard'));
+  }
+}
+
+// ── Sticky action bar ──
+const actionBar = document.getElementById('action-bar');
+window.addEventListener('scroll', () => {
+  if (!actionBar) return;
+  actionBar.classList.toggle('scrolled', window.scrollY > 320);
+}, { passive: true });
+</script>
+{% endblock %}

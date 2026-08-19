@@ -1,0 +1,431 @@
+{% extends 'base.html' %}
+{% block title %}{{ user_profile.full_name|default:profile_user.username }} (@{{ profile_user.username }}) — KIPAS{% endblock %}
+
+{% block content %}
+<div class="profile-page">
+
+  <!-- ═══ COVER HERO ═══ -->
+  <div class="profile-hero">
+    {% if user_profile.cover_photo %}
+    <img src="{{ user_profile.cover_photo.url }}" class="profile-cover-img" alt="">
+    {% else %}
+    <div class="profile-cover-gradient"></div>
+    {% endif %}
+    <div class="profile-cover-overlay"></div>
+
+    {% if is_own %}
+    <a href="/profile/settings/?section=profile" class="profile-cover-edit" title="Edit cover photo">
+      <i data-lucide="camera" width="13" height="13"></i> Edit Cover
+    </a>
+    {% endif %}
+
+    <!-- Floating stats strip -->
+    <div class="profile-cover-stats">
+      <div class="profile-cover-stat">
+        <span class="pcs-val">{{ user_profile.hosted_events_count }}</span>
+        <span class="pcs-label">Hosted</span>
+      </div>
+      <div class="profile-cover-stat">
+        <span class="pcs-val">{{ user_profile.joined_events_count }}</span>
+        <span class="pcs-label">Joined</span>
+      </div>
+      <div class="profile-cover-stat">
+        <span class="pcs-val">{{ followers_count }}</span>
+        <span class="pcs-label">Followers</span>
+      </div>
+      <div class="profile-cover-stat">
+        <span class="pcs-val">{{ following_count }}</span>
+        <span class="pcs-label">Following</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══ IDENTITY ═══ -->
+  <div class="profile-identity-card">
+
+    <!-- Avatar -->
+    <div class="profile-avatar-outer">
+      {% if user_profile.avatar %}
+      <img src="{{ user_profile.avatar.url }}" class="profile-avatar-img" alt="{{ profile_user.username }}">
+      {% else %}
+      <div class="profile-avatar-placeholder">{{ profile_user.username|first|upper }}</div>
+      {% endif %}
+      {% if user_profile.is_online %}<span class="profile-avatar-online"></span>{% endif %}
+      {% if is_own %}
+      <a href="/profile/settings/?section=profile" class="profile-avatar-edit" title="Change photo">
+        <i data-lucide="camera" width="12" height="12"></i>
+      </a>
+      {% endif %}
+    </div>
+
+    <!-- Name + meta -->
+    <div class="profile-identity-info">
+      <div class="profile-name-row">
+        <span class="profile-name">{{ user_profile.full_name|default:profile_user.username }}</span>
+        {% if user_profile.is_verified_host %}
+        <span class="profile-verified-badge" title="Verified Host">
+          <i data-lucide="check-circle" width="16" height="16"></i>
+        </span>
+        {% endif %}
+        <span class="level-badge">Lv{{ user_profile.level }} · {{ user_profile.level_title }}</span>
+      </div>
+      <div class="profile-handle">@{{ profile_user.username }}</div>
+      <div class="profile-meta-row">
+        {% if user_profile.city %}
+        <span class="profile-meta-item">
+          <i data-lucide="map-pin" width="12" height="12"></i>
+          {{ user_profile.city }}{% if user_profile.country %}, {{ user_profile.country }}{% endif %}
+        </span>
+        {% endif %}
+        <span class="profile-meta-item">
+          <i data-lucide="calendar" width="12" height="12"></i>
+          Joined {{ profile_user.date_joined|date:"M Y" }}
+        </span>
+        {% if user_profile.average_rating %}
+        <span class="profile-meta-item" style="color:#FFD700;">
+          ★ {{ user_profile.average_rating|floatformat:1 }} host rating
+        </span>
+        {% endif %}
+      </div>
+    </div>
+
+    <!-- Actions -->
+    <div class="profile-actions">
+      {% if is_own %}
+      <a href="/profile/settings/" class="btn btn-primary">
+        <i data-lucide="edit-2" width="14" height="14"></i> Edit Profile
+      </a>
+      <a href="/profile/settings/?section=appearance" class="btn btn-surface" title="Settings">
+        <i data-lucide="settings" width="14" height="14"></i>
+      </a>
+
+      {% elif user.is_authenticated and not is_blocked %}
+      {% if is_friend %}
+      <button class="btn btn-surface" disabled>
+        <i data-lucide="users" width="14" height="14"></i> Friends
+      </button>
+      {% elif friendship_status == 'pending' %}
+      <button class="btn btn-surface" disabled>
+        <i data-lucide="clock" width="14" height="14"></i> Pending
+      </button>
+      {% else %}
+      <button class="btn btn-primary" id="friend-btn"
+        onclick="sendFriendRequest('{{ profile_user.username }}', this)">
+        <i data-lucide="user-plus" width="14" height="14"></i> Add Friend
+      </button>
+      {% endif %}
+
+      <button class="btn {% if is_following %}btn-surface{% else %}btn-outline{% endif %}" id="follow-btn"
+        onclick="followUser('{{ profile_user.username }}', this)">
+        <i data-lucide="{% if is_following %}user-check{% else %}rss{% endif %}" width="14" height="14"></i>
+        {% if is_following %}Following{% else %}Follow{% endif %}
+      </button>
+
+      <a href="/messages/new/{{ profile_user.username }}/" class="btn btn-surface" title="Message">
+        <i data-lucide="message-circle" width="14" height="14"></i>
+      </a>
+
+      <div style="position:relative;">
+        <button class="btn btn-surface" onclick="toggleDropdown('profile-more')" title="More">
+          <i data-lucide="more-horizontal" width="14" height="14"></i>
+        </button>
+        <div id="profile-more" class="dropdown-menu" style="right:0;min-width:160px;display:none;">
+          <button class="dropdown-item" onclick="blockUser('{{ profile_user.username }}')">
+            <i data-lucide="slash" width="14" height="14"></i>
+            {% if is_blocked %}Unblock{% else %}Block{% endif %} User
+          </button>
+          <div class="dropdown-divider"></div>
+          <button class="dropdown-item danger" onclick="alert('Report submitted. Thank you.')">
+            <i data-lucide="flag" width="14" height="14"></i> Report
+          </button>
+        </div>
+      </div>
+      {% endif %}
+    </div>
+  </div>
+
+  <!-- ═══ STATS BAR ═══ -->
+  <div class="profile-stats-bar">
+    <div class="profile-stat-item">
+      <div class="profile-stat-number" data-counter="{{ user_profile.hosted_events_count }}">{{ user_profile.hosted_events_count }}</div>
+      <div class="profile-stat-desc">Hosted</div>
+    </div>
+    <div class="profile-stat-item">
+      <div class="profile-stat-number" data-counter="{{ user_profile.joined_events_count }}">{{ user_profile.joined_events_count }}</div>
+      <div class="profile-stat-desc">Joined</div>
+    </div>
+    <div class="profile-stat-item">
+      <div class="profile-stat-number" data-counter="{{ followers_count }}">{{ followers_count }}</div>
+      <div class="profile-stat-desc">Followers</div>
+    </div>
+    <div class="profile-stat-item">
+      <div class="profile-stat-number" data-counter="{{ following_count }}">{{ following_count }}</div>
+      <div class="profile-stat-desc">Following</div>
+    </div>
+    <div class="profile-stat-item">
+      <div class="profile-stat-number" data-counter="{{ user_profile.reputation_score|floatformat:"0" }}">{{ user_profile.reputation_score|floatformat:0 }}</div>
+      <div class="profile-stat-desc">Reputation</div>
+    </div>
+  </div>
+
+  <!-- ═══ XP BAR ═══ -->
+  <div class="profile-xp-section">
+    <div class="profile-xp-header">
+      <span class="profile-xp-label">{{ user_profile.xp }} XP · Level {{ user_profile.level }}</span>
+      <span class="profile-xp-meta">
+        {% if user_profile.level < 10 %}+{{ user_profile.xp_to_next_level }} XP to Lv{{ user_profile.level|add:"1" }}
+        {% else %}Max Level 🏆{% endif %}
+      </span>
+    </div>
+    <div class="profile-xp-track">
+      <div class="profile-xp-fill" id="xp-fill" style="width:0%;"></div>
+    </div>
+  </div>
+
+  <!-- ═══ BIO + LINKS ═══ -->
+  {% if user_profile.bio or user_profile.website or user_profile.instagram or user_profile.twitter or user_profile.linkedin %}
+  <div class="profile-bio-section">
+    {% if user_profile.bio %}
+    <p class="profile-bio">{{ user_profile.bio }}</p>
+    {% endif %}
+    <div class="profile-links">
+      {% if user_profile.website %}
+      <a href="{{ user_profile.website }}" class="profile-link-item" target="_blank" rel="noopener noreferrer">
+        <i data-lucide="globe" width="13" height="13"></i> {{ user_profile.website|truncatechars:30 }}
+      </a>
+      {% endif %}
+      {% if user_profile.instagram %}
+      <a href="https://instagram.com/{{ user_profile.instagram }}" class="profile-link-item" target="_blank" rel="noopener noreferrer">
+        <i data-lucide="instagram" width="13" height="13"></i> @{{ user_profile.instagram }}
+      </a>
+      {% endif %}
+      {% if user_profile.twitter %}
+      <a href="https://twitter.com/{{ user_profile.twitter }}" class="profile-link-item" target="_blank" rel="noopener noreferrer">
+        <i data-lucide="twitter" width="13" height="13"></i> @{{ user_profile.twitter }}
+      </a>
+      {% endif %}
+      {% if user_profile.linkedin %}
+      <a href="https://linkedin.com/in/{{ user_profile.linkedin }}" class="profile-link-item" target="_blank" rel="noopener noreferrer">
+        <i data-lucide="linkedin" width="13" height="13"></i> {{ user_profile.linkedin }}
+      </a>
+      {% endif %}
+    </div>
+  </div>
+  {% endif %}
+
+  <!-- ═══ TABS ═══ -->
+  <div class="profile-tabs-wrap">
+    <div class="profile-tabs-bar">
+      <button class="profile-tab-btn active" onclick="switchProfileTab('events', this)">
+        <i data-lucide="calendar" width="14" height="14"></i> Events
+        <span class="tab-count">{{ hosted_events|length }}</span>
+      </button>
+      <button class="profile-tab-btn" onclick="switchProfileTab('badges', this)">
+        <i data-lucide="award" width="14" height="14"></i> Badges
+        <span class="tab-count">{{ badges|length }}</span>
+      </button>
+      <button class="profile-tab-btn" onclick="switchProfileTab('reviews', this)">
+        <i data-lucide="star" width="14" height="14"></i> Reviews
+        <span class="tab-count">{{ reviews|length }}</span>
+      </button>
+      <button class="profile-tab-btn" onclick="switchProfileTab('friends', this)">
+        <i data-lucide="users" width="14" height="14"></i> Friends
+        <span class="tab-count">{{ friends|length }}</span>
+      </button>
+    </div>
+
+    <!-- ── Events ── -->
+    <div id="profile-tab-events" class="profile-tab-content">
+      {% if hosted_events %}
+      <div class="events-grid">
+        {% for event in hosted_events %}
+        <div class="event-card-anim" style="animation-delay:{{ forloop.counter0 }}0ms;">
+          {% include 'components/event_card.html' %}
+        </div>
+        {% endfor %}
+      </div>
+      {% if is_own %}
+      <div style="text-align:center;margin-top:var(--space-6);">
+        <a href="/events/create/" class="btn btn-primary">
+          <i data-lucide="plus" width="15" height="15"></i> Create New Event
+        </a>
+      </div>
+      {% endif %}
+      {% else %}
+      <div class="profile-tab-empty">
+        <i data-lucide="calendar" width="48" height="48"></i>
+        <h3>No events yet</h3>
+        {% if is_own %}
+        <p>Host your first event and people will see it here.</p>
+        <a href="/events/create/" class="btn btn-primary"><i data-lucide="plus" width="14" height="14"></i> Create Event</a>
+        {% else %}
+        <p>{{ profile_user.username }} hasn't hosted any events yet.</p>
+        {% endif %}
+      </div>
+      {% endif %}
+    </div>
+
+    <!-- ── Badges ── -->
+    <div id="profile-tab-badges" class="profile-tab-content" style="display:none;">
+      {% if badges %}
+      <div class="badge-grid">
+        {% for ub in badges %}
+        <div class="badge-card" title="{{ ub.badge.description }}">
+          <div class="badge-emoji">{{ ub.badge.icon|default:"🏅" }}</div>
+          <div class="badge-name">{{ ub.badge.name }}</div>
+          <div class="badge-desc">{{ ub.badge.description|truncatechars:60 }}</div>
+          <div class="badge-date">{{ ub.earned_at|date:"M j, Y" }}</div>
+        </div>
+        {% endfor %}
+      </div>
+      {% else %}
+      <div class="profile-tab-empty">
+        <i data-lucide="award" width="48" height="48"></i>
+        <h3>No badges yet</h3>
+        <p>Earn badges by hosting events, joining meetups, and leveling up.</p>
+      </div>
+      {% endif %}
+    </div>
+
+    <!-- ── Reviews ── -->
+    <div id="profile-tab-reviews" class="profile-tab-content" style="display:none;">
+      {% if reviews %}
+      <div class="profile-rating-summary">
+        <div class="profile-rating-big">
+          <div class="profile-rating-score">{{ avg_rating|default:"—" }}</div>
+          <div class="profile-rating-stars">
+            {% for i in "12345" %}
+            <span class="star {% if avg_rating and forloop.counter <= avg_rating %}filled{% endif %}">★</span>
+            {% endfor %}
+          </div>
+          <div class="profile-rating-count">{{ reviews|length }} review{{ reviews|length|pluralize }}</div>
+        </div>
+        <div class="profile-rating-bars">
+          {% for bar in "54321" %}
+          <div class="profile-rating-bar-row">
+            <span class="prbr-label">{{ bar }}</span>
+            <div class="prbr-track">
+              <div class="prbr-fill" style="width:{% if bar == '5' %}65{% elif bar == '4' %}20{% elif bar == '3' %}10{% elif bar == '2' %}3{% else %}2{% endif %}%;"></div>
+            </div>
+          </div>
+          {% endfor %}
+        </div>
+      </div>
+      {% for review in reviews %}
+      <div class="review-card">
+        <div class="review-card-header">
+          <a href="/profile/{{ review.reviewer.username }}/" style="flex-shrink:0;">
+            {% if review.reviewer.profile.avatar %}
+            <img src="{{ review.reviewer.profile.avatar.url }}" class="avatar avatar-sm" alt="">
+            {% else %}
+            <div class="avatar-placeholder avatar-sm" style="font-size:13px;">{{ review.reviewer.username|first|upper }}</div>
+            {% endif %}
+          </a>
+          <div style="flex:1;min-width:0;">
+            <a href="/profile/{{ review.reviewer.username }}/" style="font-size:14px;font-weight:600;color:var(--color-text);text-decoration:none;">
+              {{ review.reviewer.username }}
+            </a>
+            <div class="star-rating" style="margin-top:2px;">
+              {% for i in "12345" %}
+              <span class="star {% if forloop.counter <= review.rating %}filled{% endif %}">★</span>
+              {% endfor %}
+            </div>
+          </div>
+          <span style="font-size:12px;color:var(--color-text-muted);flex-shrink:0;">{{ review.created_at|date:"M j, Y" }}</span>
+        </div>
+        <p style="font-size:14px;color:var(--color-text-secondary);line-height:1.7;margin:var(--space-3) 0 0;">{{ review.comment }}</p>
+        {% if review.event %}
+        <a href="/events/{{ review.event.pk }}/" class="review-event-link">
+          <i data-lucide="calendar" width="12" height="12"></i> {{ review.event.title|truncatechars:48 }}
+        </a>
+        {% endif %}
+      </div>
+      {% endfor %}
+      {% else %}
+      <div class="profile-tab-empty">
+        <i data-lucide="star" width="48" height="48"></i>
+        <h3>No reviews yet</h3>
+        <p>Reviews appear here after hosting events.</p>
+      </div>
+      {% endif %}
+    </div>
+
+    <!-- ── Friends ── -->
+    <div id="profile-tab-friends" class="profile-tab-content" style="display:none;">
+      {% if friends %}
+      <div class="friend-grid">
+        {% for friend in friends %}
+        <a href="/profile/{{ friend.username }}/" class="friend-card">
+          <div class="friend-card-avatar">
+            {% if friend.profile.avatar %}
+            <img src="{{ friend.profile.avatar.url }}" class="avatar avatar-lg" alt="{{ friend.username }}">
+            {% else %}
+            <div class="avatar-placeholder avatar-lg" style="font-size:22px;">{{ friend.username|first|upper }}</div>
+            {% endif %}
+            {% if friend.profile.is_online %}<span class="friend-card-online"></span>{% endif %}
+          </div>
+          <div class="friend-name">{{ friend.profile.full_name|default:friend.username }}</div>
+          <div class="friend-handle">@{{ friend.username }}</div>
+          <span class="level-badge" style="font-size:10px;margin-top:var(--space-1);display:inline-block;">
+            Lv{{ friend.profile.level }}
+          </span>
+        </a>
+        {% endfor %}
+      </div>
+      {% else %}
+      <div class="profile-tab-empty">
+        <i data-lucide="users" width="48" height="48"></i>
+        <h3>No friends yet</h3>
+        {% if is_own %}
+        <p>Connect with people at events to grow your circle.</p>
+        <a href="/search/?tab=people" class="btn btn-primary">
+          <i data-lucide="search" width="14" height="14"></i> Find People
+        </a>
+        {% else %}
+        <p>{{ profile_user.username }}'s friends are private.</p>
+        {% endif %}
+      </div>
+      {% endif %}
+    </div>
+
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function switchProfileTab(name, btn) {
+  document.querySelectorAll('.profile-tab-content').forEach(el => el.style.display = 'none');
+  document.querySelectorAll('.profile-tab-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById('profile-tab-' + name).style.display = 'block';
+  btn.classList.add('active');
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+  setTimeout(() => {
+    const fill = document.getElementById('xp-fill');
+    if (fill) fill.style.width = '{{ user_profile.level_progress_pct }}%';
+  }, 200);
+
+  document.querySelectorAll('[data-counter]').forEach(el => {
+    const target = parseInt(el.dataset.counter) || 0;
+    if (!target) return;
+    const dur = 900;
+    const start = performance.now();
+    function tick(now) {
+      const p = Math.min((now - start) / dur, 1);
+      const ease = 1 - Math.pow(1 - p, 3);
+      el.textContent = Math.floor(ease * target).toLocaleString();
+      if (p < 1) requestAnimationFrame(tick);
+    }
+    requestAnimationFrame(tick);
+  });
+});
+
+function blockUser(username) {
+  if (!confirm('Block this user?')) return;
+  postTo('/api/v1/social/block/' + username + '/', {})
+    .then(d => showToast(d.blocked ? 'User blocked' : 'User unblocked'));
+}
+</script>
+{% endblock %}
